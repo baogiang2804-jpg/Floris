@@ -12,6 +12,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { CalculatedIngredient } from '../utils/perfumeCalculations';
+import { safeRequestPerfumeEvaluation } from '../utils/aiPerfumeEngine';
 
 interface AIEvaluatorModalProps {
   isOpen: boolean;
@@ -49,25 +50,14 @@ export const AIEvaluatorModal: React.FC<AIEvaluatorModalProps> = ({
     setError(null);
 
     try {
-      const response = await fetch('/api/perfume/evaluate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          season: seasonLabel,
-          totalVolume,
-          concentration: concentrationName,
-          ingredients,
-          tierTotals,
-        }),
+      const data = await safeRequestPerfumeEvaluation({
+        seasonLabel,
+        totalVolume,
+        concentrationName,
+        ingredients,
+        tierTotals,
       });
 
-      if (!response.ok) {
-        throw new Error(`Máy chủ phản hồi mã lỗi: ${response.status}`);
-      }
-
-      const data = await response.json();
       setEvaluation(data);
       if (data?.perfumeName && onSavePerfumeName) {
         onSavePerfumeName(data.perfumeName);

@@ -14,6 +14,11 @@ import {
   Mic,
 } from 'lucide-react';
 import { CalculatedIngredient, FormulaSlot } from '../utils/perfumeCalculations';
+import {
+  safeRequestPerfumeEvaluation,
+  safeRequestTTS,
+  speakWithBrowserSynthesis,
+} from '../utils/aiPerfumeEngine';
 import { QRAndVoiceAssistantSection } from './QRAndVoiceAssistantSection';
 import { PresentationShowcaseHub } from './PresentationShowcaseHub';
 
@@ -85,23 +90,14 @@ export const SubWebAIEvaluator: React.FC<SubWebAIEvaluatorProps> = ({
     setError(null);
 
     try {
-      const response = await fetch('/api/perfume/evaluate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          season: seasonLabel,
-          totalVolume,
-          concentration: concentrationName,
-          ingredients,
-          tierTotals,
-        }),
+      const data = await safeRequestPerfumeEvaluation({
+        seasonLabel,
+        totalVolume,
+        concentrationName,
+        ingredients,
+        tierTotals,
       });
 
-      if (!response.ok) {
-        throw new Error(`Máy chủ phản hồi mã lỗi: ${response.status}`);
-      }
-
-      const data = await response.json();
       setEvaluation(data);
       if (data?.perfumeName) {
         onSavePerfumeName(data.perfumeName);
@@ -137,26 +133,21 @@ export const SubWebAIEvaluator: React.FC<SubWebAIEvaluatorProps> = ({
     setIsSpeakingEval(true);
 
     try {
-      const res = await fetch('/api/perfume/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: textToSpeak, voiceName: 'Kore' }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data.audioBase64) {
-          const audio = new Audio(`data:${data.mimeType || 'audio/wav'};base64,${data.audioBase64}`);
-          audioPlayerRef.current = audio;
-          audio.onended = () => setIsSpeakingEval(false);
-          audio.onerror = () => setIsSpeakingEval(false);
-          await audio.play();
-          return;
-        }
+      const ttsResult = await safeRequestTTS(textToSpeak);
+      if (ttsResult.audioBase64) {
+        const audio = new Audio(`data:${ttsResult.mimeType || 'audio/wav'};base64,${ttsResult.audioBase64}`);
+        audioPlayerRef.current = audio;
+        audio.onended = () => setIsSpeakingEval(false);
+        audio.onerror = () => {
+          speakWithBrowserSynthesis(textToSpeak, () => setIsSpeakingEval(false));
+        };
+        await audio.play();
+        return;
       }
-      setIsSpeakingEval(false);
+
+      speakWithBrowserSynthesis(textToSpeak, () => setIsSpeakingEval(false));
     } catch {
-      setIsSpeakingEval(false);
+      speakWithBrowserSynthesis(textToSpeak, () => setIsSpeakingEval(false));
     }
   };
 

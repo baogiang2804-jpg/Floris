@@ -24,6 +24,12 @@ import {
   AudioWaveform,
 } from 'lucide-react';
 import { CalculatedIngredient, FormulaSlot } from '../utils/perfumeCalculations';
+import {
+  safeRequestPerfumeAdjustment,
+  safeRequestTTS,
+  safeRequestTranscribe,
+  speakWithBrowserSynthesis,
+} from '../utils/aiPerfumeEngine';
 
 interface ComparisonItem {
   slotKey: FormulaSlot['key'];
@@ -101,6 +107,7 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
   const recognitionRef = useRef<any>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const lastTranscriptRef = useRef<string>('');
 
   // Voice Synthesis / Playback (TTS) states
   const [autoSpeak, setAutoSpeak] = useState<boolean>(true);
@@ -161,42 +168,38 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
     setTimeout(() => setCopiedQrLink(false), 2500);
   };
 
-  // Play AI response strictly via Gemini Live voice
+  // Play AI response with Gemini Live voice or Vietnamese browser speech fallback
   const speakResponseText = async (textToSpeak: string) => {
     if (!textToSpeak) return;
     stopSpeaking();
     setIsSpeaking(true);
 
     try {
-      const res = await fetch('/api/perfume/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: textToSpeak, voiceName: 'Kore' }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data.audioBase64) {
-          const audio = new Audio(`data:${data.mimeType || 'audio/wav'};base64,${data.audioBase64}`);
-          audioPlayerRef.current = audio;
-          audio.onended = () => setIsSpeaking(false);
-          audio.onerror = () => setIsSpeaking(false);
-          await audio.play();
-          return;
-        }
+      const ttsResult = await safeRequestTTS(textToSpeak);
+      if (ttsResult.audioBase64) {
+        const audio = new Audio(`data:${ttsResult.mimeType || 'audio/wav'};base64,${ttsResult.audioBase64}`);
+        audioPlayerRef.current = audio;
+        audio.onended = () => setIsSpeaking(false);
+        audio.onerror = () => {
+          speakWithBrowserSynthesis(textToSpeak, () => setIsSpeaking(false));
+        };
+        await audio.play();
+        return;
       }
-      setIsSpeaking(false);
+
+      speakWithBrowserSynthesis(textToSpeak, () => setIsSpeaking(false));
     } catch {
-      setIsSpeaking(false);
+      speakWithBrowserSynthesis(textToSpeak, () => setIsSpeaking(false));
     }
   };
 
-  // Toggle Microphone Recording & Speech-to-Text
+  // Toggle Microphone:
+  // Chạm lần 1: Lắng nghe giọng nói.
+  // Chạm lần 2: Dừng nghe, AI lập tức phân tích và đưa ra phản hồi.
   const handleToggleVoiceInput = async () => {
     if (isListening) {
-      // Stop listening
+      // User tapped second time to stop listening and trigger AI analysis
       setIsListening(false);
-      setVoiceStatusText('Đang hoàn tất nhận diện giọng nói...');
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
@@ -207,11 +210,24 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
         mediaRecorderRef.current.stop();
       }
+
+      const promptToAnalyze = (lastTranscriptRef.current || userRequest || '').trim();
+      if (promptToAnalyze) {
+        setVoiceStatusText('Đã nhận diện lời nói! AI đang phân tích và chuẩn bị trả lời...');
+        handleSendRequestToAI(promptToAnalyze);
+      } else {
+        const defaultPrompt = 'Tôi muốn mùi hoa nhài ở đầu thanh thoát và tươi mát hơn.';
+        setUserRequest(defaultPrompt);
+        setVoiceStatusText('Đang tự động phân tích theo gợi ý mùi hương tươi mát...');
+        handleSendRequestToAI(defaultPrompt);
+      }
       return;
     }
 
+    // First tap: Start listening
     setErrorMsg(null);
     stopSpeaking();
+    lastTranscriptRef.current = '';
 
     const SpeechRecognitionAPI =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -220,12 +236,12 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
       try {
         const recognition = new SpeechRecognitionAPI();
         recognition.lang = 'vi-VN';
-        recognition.continuous = false;
+        recognition.continuous = true;
         recognition.interimResults = true;
 
         recognition.onstart = () => {
           setIsListening(true);
-          setVoiceStatusText('Đang lắng nghe... Hãy nói yêu cầu điều chỉnh mùi hương của bạn');
+          setVoiceStatusText('🎙️ Đang lắng nghe... Hãy nói yêu cầu, chạm lại mic khi nói xong để AI phân tích!');
         };
 
         recognition.onresult = (event: any) => {
@@ -233,7 +249,11 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
           for (let i = 0; i < event.results.length; i++) {
             transcript += event.results[i][0].transcript;
           }
-          setUserRequest(transcript);
+          if (transcript) {
+            setUserRequest(transcript);
+            lastTranscriptRef.current = transcript;
+            setVoiceStatusText(`Đã nghe: "${transcript}" — Chạm mic lần nữa để AI trả lời!`);
+          }
         };
 
         recognition.onerror = () => {
@@ -243,19 +263,17 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
 
         recognition.onend = () => {
           setIsListening(false);
-          setVoiceStatusText('Đã chuyển giọng nói thành văn bản thành công!');
-          setTimeout(() => setVoiceStatusText(''), 3000);
         };
 
         recognitionRef.current = recognition;
         recognition.start();
         return;
       } catch {
-        // Fallback to MediaRecorder + Gemini Transcribe
+        // Fallback to MediaRecorder
       }
     }
 
-    // Fallback: Record audio via MediaRecorder & send to /api/perfume/transcribe
+    // Fallback: Record audio via MediaRecorder & transcribe safely
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
@@ -273,40 +291,22 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
         setIsTranscribingServer(true);
         setVoiceStatusText('Đang chuyển giọng nói thành văn bản bằng AI...');
 
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-          const base64String = (reader.result as string).split(',')[1];
-          try {
-            const res = await fetch('/api/perfume/transcribe', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ audioBase64: base64String, mimeType: 'audio/webm' }),
-            });
-            const data = await res.json();
-            if (res.ok && data.transcript) {
-              setUserRequest(data.transcript);
-              setVoiceStatusText('Đã nhận diện lời nói thành công!');
-            } else {
-              setErrorMsg(
-                data.error ||
-                  'Trình duyệt không hỗ trợ Web Speech trực tiếp. Bạn có thể chọn câu mẫu hoặc nhập văn bản bên dưới.'
-              );
-              setVoiceStatusText('');
-            }
-          } catch {
-            setErrorMsg('Không thể kết nối máy chủ nhận diện giọng nói.');
-            setVoiceStatusText('');
-          } finally {
-            setIsTranscribingServer(false);
-          }
-        };
-        reader.readAsDataURL(audioBlob);
+        const transcript = await safeRequestTranscribe(audioBlob);
+        setIsTranscribingServer(false);
+        if (transcript) {
+          setUserRequest(transcript);
+          lastTranscriptRef.current = transcript;
+          setVoiceStatusText(`Đã nhận diện: "${transcript}" — Chạm mic lần nữa để AI trả lời!`);
+          handleSendRequestToAI(transcript);
+        } else {
+          setVoiceStatusText('');
+        }
       };
 
       mediaRecorderRef.current = mediaRecorder;
       mediaRecorder.start();
       setIsListening(true);
-      setVoiceStatusText('Đang thu âm... Nhấn lại nút Micro khi bạn nói xong');
+      setVoiceStatusText('🎙️ Đang thu âm... Chạm lại nút Micro khi nói xong để AI phân tích!');
     } catch {
       setErrorMsg(
         'Không thể truy cập Micro. Vui lòng cấp quyền Micro cho trình duyệt hoặc chọn nhanh các câu hỏi mẫu bên dưới.'
@@ -314,17 +314,16 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
     }
   };
 
-  // Send Request to AI for Formula Adjustment & Comparison
+  // Send Request to AI for Formula Adjustment & Comparison (Safe from JSON parse errors)
   const handleSendRequestToAI = async (customPrompt?: string) => {
-    const promptToUse = (customPrompt !== undefined ? customPrompt : userRequest).trim();
+    const promptToUse = (customPrompt !== undefined ? customPrompt : (lastTranscriptRef.current || userRequest)).trim();
     if (!promptToUse) {
       setErrorMsg('Vui lòng nhập yêu cầu hoặc nhấn nút Micro để nói mong muốn của bạn.');
       return;
     }
 
-    if (customPrompt !== undefined) {
-      setUserRequest(customPrompt);
-    }
+    setUserRequest(promptToUse);
+    lastTranscriptRef.current = promptToUse;
 
     setErrorMsg(null);
     setIsAnalyzing(true);
@@ -333,28 +332,18 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
     stopSpeaking();
 
     try {
-      const response = await fetch('/api/perfume/adjust', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userRequest: promptToUse,
-          season: seasonLabel,
-          totalVolume,
-          concentration: concentrationName,
-          concentrationPercent,
-          ingredients: calculatedIngredients,
-          tierTotals,
-        }),
+      const data = await safeRequestPerfumeAdjustment({
+        userRequest: promptToUse,
+        seasonLabel,
+        totalVolume,
+        concentrationName,
+        concentrationPercent,
+        ingredients: calculatedIngredients,
+        tierTotals,
       });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Lỗi khi phân tích điều chỉnh công thức.');
-      }
 
       setAdjustmentResult(data);
 
-      // Automatically read out the response if enabled
       if (autoSpeak && data.spokenResponse) {
         speakResponseText(data.spokenResponse);
       }
@@ -657,7 +646,7 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
                     ? 'bg-rose-600 text-white animate-pulse ring-4 ring-rose-500/30'
                     : 'bg-slate-800 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-slate-700'
                 }`}
-                title={isListening ? 'Nhấn để dừng thu âm' : 'Nhấn để nói bằng giọng nói (Speech-to-Text)'}
+                title={isListening ? 'Chạm lại để dừng nghe và AI sẽ phân tích trả lời ngay' : 'Chạm để nói bằng giọng nói (AI sẽ lắng nghe)'}
               >
                 {isTranscribingServer ? (
                   <Loader2 className="w-4 h-4 animate-spin" />

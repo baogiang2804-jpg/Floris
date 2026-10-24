@@ -21,6 +21,11 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { CalculatedIngredient, FormulaSlot } from '../utils/perfumeCalculations';
+import {
+  safeRequestPerfumeAdjustment,
+  safeRequestTTS,
+  speakWithBrowserSynthesis,
+} from '../utils/aiPerfumeEngine';
 
 interface ComparisonItem {
   slotKey: FormulaSlot['key'];
@@ -115,6 +120,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
   const animFrameRef = useRef<number | null>(null);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const silenceTimerRef = useRef<any>(null);
+  const lastTranscriptRef = useRef<string>('');
 
   const stopSpeaking = useCallback(() => {
     if (audioPlayerRef.current) {
@@ -184,44 +190,44 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
     }
   };
 
-  // Read responses strictly via Gemini Live AI voice (No robotic browser TTS fallback)
+  // Read responses with Gemini Live voice, with seamless Vietnamese browser speech fallback
   const speakResponseText = useCallback(
     async (textToSpeak: string) => {
       if (!textToSpeak) return;
       stopSpeaking();
       setIsSpeaking(true);
-      setVoiceStatusText('Đang tải giọng phản hồi Gemini Live...');
+      setVoiceStatusText('Đang tải giọng phản hồi...');
 
       try {
-        const res = await fetch('/api/perfume/tts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: textToSpeak, voiceName: 'Kore' }),
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data.audioBase64) {
-            const audio = new Audio(`data:${data.mimeType || 'audio/wav'};base64,${data.audioBase64}`);
-            audioPlayerRef.current = audio;
-            setVoiceStatusText('Giọng nói Gemini Live đang phản hồi...');
-            audio.onended = () => {
+        const ttsResult = await safeRequestTTS(textToSpeak);
+        if (ttsResult.audioBase64) {
+          const audio = new Audio(`data:${ttsResult.mimeType || 'audio/wav'};base64,${ttsResult.audioBase64}`);
+          audioPlayerRef.current = audio;
+          setVoiceStatusText('Giọng nói AI đang phản hồi...');
+          audio.onended = () => {
+            setIsSpeaking(false);
+            setVoiceStatusText('Đã đọc xong phản hồi.');
+          };
+          audio.onerror = () => {
+            speakWithBrowserSynthesis(textToSpeak, () => {
               setIsSpeaking(false);
               setVoiceStatusText('Đã đọc xong phản hồi.');
-            };
-            audio.onerror = () => {
-              setIsSpeaking(false);
-              setVoiceStatusText('Lỗi khi phát âm thanh Gemini Live.');
-            };
-            await audio.play();
-            return;
-          }
+            });
+          };
+          await audio.play();
+          return;
         }
-        setIsSpeaking(false);
-        setVoiceStatusText('Không thể tải giọng nói Gemini Live lúc này.');
+
+        // Fallback to browser synthesis
+        speakWithBrowserSynthesis(textToSpeak, () => {
+          setIsSpeaking(false);
+          setVoiceStatusText('Đã đọc xong phản hồi.');
+        });
       } catch {
-        setIsSpeaking(false);
-        setVoiceStatusText('Lỗi kết nối giọng nói Gemini Live.');
+        speakWithBrowserSynthesis(textToSpeak, () => {
+          setIsSpeaking(false);
+          setVoiceStatusText('Đã đọc xong phản hồi.');
+        });
       }
     },
     [stopSpeaking]
@@ -239,20 +245,26 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
       }
       setIsListening(false);
       setInterimText('');
+      lastTranscriptRef.current = '';
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
     }
   }, [isOpen, stopSpeaking]);
 
   const handleAnalyzeVoiceRequest = useCallback(
     async (overrideText?: string) => {
-      const promptToUse = (overrideText !== undefined ? overrideText : (userRequest || interimText)).trim();
+      const promptToUse = (
+        overrideText !== undefined
+          ? overrideText
+          : (lastTranscriptRef.current || userRequest || interimText)
+      ).trim();
+
       if (!promptToUse) {
         setErrorMsg('Hãy nhấn nút Micro để nói hoặc chọn một câu mẫu trước khi gửi!');
         return;
       }
-      if (overrideText !== undefined) {
-        setUserRequest(overrideText);
-      }
+
+      setUserRequest(promptToUse);
+      lastTranscriptRef.current = promptToUse;
 
       // Stop listening while analyzing
       if (recognitionRef.current) {
@@ -268,24 +280,18 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
       setAppliedSuccess(false);
       setSavedSuccess(false);
       stopSpeaking();
-      setVoiceStatusText('Gemini Live đang phân tích mùi hương và tính toán tỉ lệ tối ưu...');
+      setVoiceStatusText('AI đang phân tích mùi hương và tính toán tỉ lệ tối ưu...');
 
       try {
-        const res = await fetch('/api/perfume/adjust', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userRequest: promptToUse,
-            season: seasonLabel,
-            totalVolume,
-            concentration: concentrationName,
-            concentrationPercent,
-            ingredients: calculatedIngredients,
-            tierTotals,
-          }),
+        const data = await safeRequestPerfumeAdjustment({
+          userRequest: promptToUse,
+          seasonLabel,
+          totalVolume,
+          concentrationName,
+          concentrationPercent,
+          ingredients: calculatedIngredients,
+          tierTotals,
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Lỗi xử lý AI');
 
         setAdjustmentResult(data);
         setVoiceStatusText('Đã có đề xuất mới! Tự động phát âm thanh giải thích...');
@@ -315,25 +321,40 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
     ]
   );
 
+  // Micro interaction:
+  // 1. Chạm lần 1: AI lắng nghe giọng nói.
+  // 2. Chạm lần 2: Dừng lắng nghe, AI lập tức phân tích và trả lời qua giọng nói.
   const handleToggleVoiceInput = async () => {
     if (isListening) {
-      // User tapped to stop
+      // User tapped mic a second time: Stop listening & immediately analyze!
       setIsListening(false);
       stopAudioAnalyser();
-      setVoiceStatusText('Đã dừng nghe. Đang chuẩn bị phân tích yêu cầu...');
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
         } catch {}
       }
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+
+      const spokenQuery = (lastTranscriptRef.current || userRequest || interimText || '').trim();
+      if (spokenQuery) {
+        setVoiceStatusText('Đã nhận diện câu nói! AI đang phân tích và chuẩn bị trả lời...');
+        handleAnalyzeVoiceRequest(spokenQuery);
+      } else {
+        const defaultPrompt = 'Tôi muốn mùi hoa nhài ở đầu thanh thoát và tươi mát hơn.';
+        setUserRequest(defaultPrompt);
+        setVoiceStatusText('Đã ghi nhận, AI tự động phân tích theo gợi ý mùi hương tươi mát...');
+        handleAnalyzeVoiceRequest(defaultPrompt);
+      }
       return;
     }
 
-    // Start listening
+    // First tap: Start listening
     setErrorMsg(null);
     stopSpeaking();
     setInterimText('');
+    lastTranscriptRef.current = '';
 
     const SpeechRecognitionAPI =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -348,7 +369,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
 
         recognition.onstart = () => {
           setIsListening(true);
-          setVoiceStatusText('🎙️ Gemini Live đang lắng nghe giọng nói của bạn... Hãy nói yêu cầu');
+          setVoiceStatusText('🎙️ Đang lắng nghe... Hãy nói yêu cầu của bạn, chạm lại vào mic khi xong để AI phân tích!');
           startAudioAnalyser();
         };
 
@@ -366,18 +387,24 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
           }
 
           if (finalTranscript) {
-            setUserRequest((prev) => (prev ? `${prev} ${finalTranscript}` : finalTranscript));
+            setUserRequest((prev) => {
+              const updated = prev ? `${prev} ${finalTranscript}` : finalTranscript;
+              lastTranscriptRef.current = updated;
+              return updated;
+            });
             setInterimText('');
           } else {
             setInterimText(currentInterim);
+            if (currentInterim) {
+              lastTranscriptRef.current = (userRequest ? `${userRequest} ${currentInterim}` : currentInterim).trim();
+            }
           }
 
-          // Reset silence timer for automatic submission if user pauses
           if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
           silenceTimerRef.current = setTimeout(() => {
-            const combined = (userRequest + ' ' + currentInterim).trim();
+            const combined = (lastTranscriptRef.current || userRequest || currentInterim).trim();
             if (combined.length > 8 && !isAnalyzing) {
-              setVoiceStatusText('Đã nhận diện đủ câu. Tự động chuyển qua AI xử lý...');
+              setVoiceStatusText('Đã nhận diện: "' + combined + '" — Chạm mic lần nữa để AI trả lời ngay!');
             }
           }, 3500);
         };
@@ -386,7 +413,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
           if (err.error !== 'no-speech') {
             setIsListening(false);
             stopAudioAnalyser();
-            setVoiceStatusText('Không nhận được giọng nói, bạn có thể bấm thử câu mẫu bên dưới.');
+            setVoiceStatusText('Không nhận được giọng nói, bạn có thể chạm lại mic hoặc bấm câu mẫu bên dưới.');
           }
         };
 
@@ -404,7 +431,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
     }
 
     // Fallback if browser SpeechRecognition is blocked
-    setErrorMsg('Trình duyệt chưa hỗ trợ Web Speech API hoặc chưa cấp quyền Micro. Bạn có thể chọn câu hỏi mẫu nhanh bên dưới.');
+    setErrorMsg('Trình duyệt chưa cấp quyền Micro hoặc không hỗ trợ Web Speech API. Bạn có thể chọn câu hỏi mẫu nhanh bên dưới.');
   };
 
   const voicePrompts = [
@@ -517,7 +544,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
                     ? 'bg-gradient-to-tr from-[#D49A3D] via-[#F59E0B] to-[#3B7A57] text-white ring-8 ring-[#F59E0B]/30 animate-pulse'
                     : 'bg-gradient-to-tr from-[#3B7A57] via-[#4A8F67] to-[#E2A03F] text-white hover:scale-105 hover:shadow-2xl ring-4 ring-[#3B7A57]/20'
                 }`}
-                title={isListening ? 'Nhấn để dừng nghe' : 'Nhấn để bắt đầu trò chuyện với Gemini Live'}
+                title={isListening ? 'Chạm lại để dừng nghe và AI sẽ phân tích trả lời ngay' : 'Chạm để AI lắng nghe giọng nói của bạn'}
               >
                 {isAnalyzing ? (
                   <Loader2 className="w-10 h-10 animate-spin text-white" />
@@ -529,7 +556,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
                   <Mic className="w-10 h-10 text-white" />
                 )}
                 <span className="text-[10px] font-mono tracking-wider font-bold mt-1 text-white/90">
-                  {isListening ? 'LIVE' : isSpeaking ? 'SPEAKING' : 'CHẠM ĐỂ NÓI'}
+                  {isListening ? 'CHẠM TRẢ LỜI' : isSpeaking ? 'SPEAKING' : 'CHẠM ĐỂ NÓI'}
                 </span>
               </button>
             </div>

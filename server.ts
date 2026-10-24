@@ -84,7 +84,7 @@ async function generateJsonWithModelFallback(
 }
 
 // Perfume evaluation endpoint
-app.post('/api/perfume/evaluate', async (req: Request, res: Response) => {
+app.post(['/api/perfume/evaluate', '/Floris/api/perfume/evaluate'], async (req: Request, res: Response) => {
   try {
     const { season, totalVolume, concentration, ingredients, tierTotals } = req.body;
 
@@ -291,7 +291,7 @@ function generateLocalEvaluation(
 }
 
 // 2. Interactive QR & Voice AI Formula Adjustment Endpoint
-app.post('/api/perfume/adjust', async (req: Request, res: Response) => {
+app.post(['/api/perfume/adjust', '/Floris/api/perfume/adjust'], async (req: Request, res: Response) => {
   try {
     const {
       userRequest,
@@ -478,7 +478,7 @@ NHIỆM VỤ BẮT BUỘC CỦA BẠN:
 });
 
 // 3. Audio Transcription Endpoint (Speech-to-Text via Gemini 3.5 Transcribe)
-app.post('/api/perfume/transcribe', async (req: Request, res: Response) => {
+app.post(['/api/perfume/transcribe', '/Floris/api/perfume/transcribe'], async (req: Request, res: Response) => {
   try {
     const { audioBase64, mimeType = 'audio/webm' } = req.body;
     if (!audioBase64) {
@@ -531,7 +531,7 @@ app.post('/api/perfume/transcribe', async (req: Request, res: Response) => {
 });
 
 // 4. Text-to-Speech Endpoint (AI Voice Response via Gemini 3.8 Flash Lite TTS)
-app.post('/api/perfume/tts', async (req: Request, res: Response) => {
+app.post(['/api/perfume/tts', '/Floris/api/perfume/tts'], async (req: Request, res: Response) => {
   try {
     const { text, voiceName = 'Kore' } = req.body;
     if (!text || typeof text !== 'string') {
@@ -1093,9 +1093,17 @@ function generateLocalAdjustment(
 }
 
 async function startServer() {
-  app.get(['/Floris', '/Floris/*'], (req: Request, res: Response) => {
+  app.get(['/Floris', '/Floris/*'], (req: Request, res: Response, next) => {
+    if (req.url.startsWith('/Floris/api/')) {
+      return next();
+    }
     const target = req.url.replace(/^\/Floris\/?/, '/') || '/';
     res.redirect(302, target);
+  });
+
+  // API catch-all to guarantee JSON responses (never HTML)
+  app.all(['/api/*', '/Floris/api/*'], (_req: Request, res: Response) => {
+    res.status(404).json({ error: 'API endpoint not found' });
   });
 
   if (process.env.NODE_ENV !== 'production') {

@@ -31,6 +31,11 @@ import {
   generatePresentationReportCsv,
   downloadCsvFile,
 } from '../utils/perfumeCalculations';
+import {
+  safeRequestPerfumeAdjustment,
+  safeRequestTTS,
+  speakWithBrowserSynthesis,
+} from '../utils/aiPerfumeEngine';
 
 interface PresentationShowcaseHubProps {
   seasonKey: 'spring' | 'summer' | 'autumn' | 'winter';
@@ -262,35 +267,26 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
     setAppliedSuccess(false);
 
     try {
-      const response = await fetch('/api/perfume/adjust', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userRequest: queryToUse,
-          season: seasonLabel,
-          totalVolume,
-          concentration: concentrationName,
-          concentrationPercent,
-          ingredients: calculatedIngredients,
-          tierTotals,
-        }),
+      const data = await safeRequestPerfumeAdjustment({
+        userRequest: queryToUse,
+        seasonLabel,
+        totalVolume,
+        concentrationName,
+        concentrationPercent,
+        ingredients: calculatedIngredients,
+        tierTotals,
       });
 
-      if (!response.ok) {
-        throw new Error(`Lỗi máy chủ (${response.status})`);
-      }
-
-      const data = await response.json();
       setAiResult(data);
 
       if (data?.studentReviewHints) {
         setStudentEval((prev) => ({
           ...prev,
-          isReasonableComment: data.studentReviewHints.reasonableHint || prev.isReasonableComment,
+          isReasonableComment: data.studentReviewHints?.reasonableHint || prev.isReasonableComment,
           chemistryExplanation:
-            data.studentReviewHints.chemistryKnowledgeHint || prev.chemistryExplanation,
+            data.studentReviewHints?.chemistryKnowledgeHint || prev.chemistryExplanation,
           verificationExperimentPlan:
-            data.studentReviewHints.experimentVerificationHint || prev.verificationExperimentPlan,
+            data.studentReviewHints?.experimentVerificationHint || prev.verificationExperimentPlan,
         }));
       }
     } catch (err: any) {
@@ -331,26 +327,21 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
     setIsSpeaking(true);
 
     try {
-      const res = await fetch('/api/perfume/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, voiceName: 'Kore' }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data.audioBase64) {
-          const audio = new Audio(`data:${data.mimeType || 'audio/wav'};base64,${data.audioBase64}`);
-          audioPlayerRef.current = audio;
-          audio.onended = () => setIsSpeaking(false);
-          audio.onerror = () => setIsSpeaking(false);
-          await audio.play();
-          return;
-        }
+      const ttsResult = await safeRequestTTS(text);
+      if (ttsResult.audioBase64) {
+        const audio = new Audio(`data:${ttsResult.mimeType || 'audio/wav'};base64,${ttsResult.audioBase64}`);
+        audioPlayerRef.current = audio;
+        audio.onended = () => setIsSpeaking(false);
+        audio.onerror = () => {
+          speakWithBrowserSynthesis(text, () => setIsSpeaking(false));
+        };
+        await audio.play();
+        return;
       }
-      setIsSpeaking(false);
+
+      speakWithBrowserSynthesis(text, () => setIsSpeaking(false));
     } catch {
-      setIsSpeaking(false);
+      speakWithBrowserSynthesis(text, () => setIsSpeaking(false));
     }
   };
 
