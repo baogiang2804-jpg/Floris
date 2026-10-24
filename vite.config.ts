@@ -29,6 +29,12 @@ export default defineConfig(({mode}) => {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    optimizeDeps: {
+      include: ['react-is', 'recharts'],
+    },
+    build: {
+      chunkSizeWarningLimit: 2000,
+    },
     server: {
       port: 3000,
       host: '0.0.0.0',
