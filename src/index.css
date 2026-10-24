@@ -1,0 +1,143 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-serif: "Cormorant Garamond", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Warm Cream & Natural Pastel Green Theme Palette */
+  --color-slate-950: #FAF8F5;
+  --color-slate-900: #FFFFFF;
+  --color-slate-850: #F7F4EC;
+  --color-slate-800: #E6DFD5;
+  --color-slate-700: #D8CEBF;
+  --color-slate-600: #8C9C90;
+  --color-slate-500: #68796C;
+  --color-slate-400: #4E6053;
+  --color-slate-300: #38483D;
+  --color-slate-200: #253329;
+  --color-slate-100: #19241D;
+  --color-slate-50:  #0F1712;
+
+  /* Natural Botanical Pastel Green Accent overrides */
+  --color-emerald-950: #EBF3ED;
+  --color-emerald-900: #DCEDE0;
+  --color-emerald-800: #B8D8C0;
+  --color-emerald-700: #5B996F;
+  --color-emerald-600: #3B7A57;
+  --color-emerald-500: #2D6344;
+  --color-emerald-400: #245237;
+  --color-emerald-300: #1B402A;
+  --color-emerald-200: #13301F;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    background-color: #FAF8F5;
+    color: #253329;
+  }
+
+  table, .font-mono {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Touch-friendly range slider for OlfactoryPyramidSliders with Warm Botanical theme */
+input[type="range"].pyramid-touch-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  border-radius: 9999px;
+  outline: none;
+  touch-action: pan-y;
+  background-color: #E6DFD5;
+}
+
+input[type="range"].pyramid-touch-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: #3B7A57;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 2px 6px rgba(45, 90, 60, 0.25);
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+input[type="range"].pyramid-touch-slider::-webkit-slider-thumb:active {
+  transform: scale(1.15);
+  background: #2D6344;
+}
+
+input[type="range"].pyramid-touch-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: #3B7A57;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 2px 6px rgba(45, 90, 60, 0.25);
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+input[type="range"].pyramid-touch-slider::-moz-range-thumb:active {
+  transform: scale(1.15);
+  background: #2D6344;
+}
+
+@media (min-width: 640px) {
+  input[type="range"].pyramid-touch-slider {
+    height: 6px;
+  }
+  input[type="range"].pyramid-touch-slider::-webkit-slider-thumb {
+    width: 18px;
+    height: 18px;
+  }
+  input[type="range"].pyramid-touch-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+/* Subtle botanical card styling */
+.botanical-card {
+  background: #FFFFFF;
+  border: 1px solid #E6DFD5;
+  box-shadow: 0 1px 3px rgba(35, 45, 38, 0.04), 0 4px 12px rgba(35, 45, 38, 0.02);
+}
+
+/* Gemini Live Dynamic Visualizer Animations */
+@keyframes geminiOrbPulse {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    filter: drop-shadow(0 0 20px rgba(59, 122, 87, 0.35));
+  }
+  50% {
+    transform: scale(1.08) rotate(180deg);
+    filter: drop-shadow(0 0 35px rgba(212, 154, 61, 0.45));
+  }
+}
+
+@keyframes geminiWave {
+  0%, 100% {
+    height: 6px;
+    opacity: 0.4;
+  }
+  50% {
+    height: 32px;
+    opacity: 1;
+  }
+}
+
+.animate-gemini-orb {
+  animation: geminiOrbPulse 5s ease-in-out infinite;
+}
+
+.animate-gemini-wave {
+  animation: geminiWave 1.2s ease-in-out infinite;
+}

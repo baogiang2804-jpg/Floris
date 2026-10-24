@@ -1,0 +1,6 @@
+{
+  "name": "Atelier Olfactif - Pha Chế Nước Hoa & Thẩm Định Mùi Hương",
+  "description": "Ứng dụng thiết kế công thức nước hoa theo mùa, cân bằng 3 tầng hương với 6 nguyên liệu, tính toán thể tích mL, hồ sơ mùi hương và thẩm định chuyên sâu cùng AI Master Perfumer.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
