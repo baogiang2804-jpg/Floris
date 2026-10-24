@@ -46,7 +46,7 @@ export const Header: React.FC<HeaderProps> = ({
           className="flex items-center gap-2.5 text-left group shrink-0 focus:outline-none"
         >
           <img
-            src="/assets/aistudio/image_404d5511.png"
+            src={import.meta.env.BASE_URL + 'assets/aistudio/image_404d5511.png'}
             alt="Floris Official Emblem"
             className="w-9 h-9 rounded-full object-cover border border-[#CFE2D4] shadow-xs group-hover:scale-105 transition-transform bg-white"
             loading="lazy"

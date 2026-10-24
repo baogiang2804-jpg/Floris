@@ -56,21 +56,21 @@ export interface SeasonalTemplate {
 
 export const FLORIS_IMAGES = {
   // Brand & Official Posters
-  poster: '/assets/aistudio/image_8290b5aa.png', // Poster chính thức chai Floris 10 mL và hoa anh đào
-  logoEmblem: '/assets/aistudio/image_404d5511.png', // Con dấu / Logo tròn Floris Eau De Parfum
-  scentStillLife: '/assets/aistudio/jasmine_peach_vanilla_scent_art.jpg', // Tác phẩm nghệ thuật 4 nốt hương (Nhài, Đào, Vani, Xạ hương)
-  atelierBench: '/assets/aistudio/perfume_atelier_bench.jpg', // Không gian bàn pha chế phòng lab
+  poster: import.meta.env.BASE_URL + 'assets/aistudio/8290b5aa.png', // Poster chính thức chai Floris 10 mL và hoa anh đào
+  logoEmblem: import.meta.env.BASE_URL + 'assets/aistudio/404d5511.png', // Con dấu / Logo tròn Floris Eau De Parfum
+  scentStillLife: import.meta.env.BASE_URL + 'assets/aistudio/jasmine_peach_vanilla_scent_art.jpg', // Tác phẩm nghệ thuật 4 nốt hương (Nhài, Đào, Vani, Xạ hương)
+  atelierBench: import.meta.env.BASE_URL + 'assets/aistudio/perfume_atelier_bench.jpg', // Không gian bàn pha chế phòng lab
 
   // Real Experimental Bottles (Tổ 1 - 12A13)
-  sampleA: '/assets/aistudio/image_7b513f70.png', // Chai nước hoa thực tế nhãn "Mẫu A"
-  sampleC: '/assets/aistudio/image_83106fcd.png', // Chai nước hoa thực tế nhãn "mẫu C"
-  sampleB: '/assets/aistudio/image_758aa176.png', // Chai chiết 10 mL thực tế trên tay
+  sampleA: import.meta.env.BASE_URL + 'assets/aistudio/7b513f70.png', // Chai nước hoa thực tế nhãn "Mẫu A"
+  sampleC: import.meta.env.BASE_URL + 'assets/aistudio/83106fcd.png', // Chai nước hoa thực tế nhãn "mẫu C"
+  sampleB: import.meta.env.BASE_URL + 'assets/aistudio/758aa176.png', // Chai chiết 10 mL thực tế trên tay
 
   // Real Laboratory Processes
-  infographic9Steps: '/assets/aistudio/image_4a90ae30.png', // Infographic chuẩn 9 bước sản xuất Floris
-  pipetteDroppingTestTube: '/assets/aistudio/image_6d8dd347.png', // Thực hành nhỏ giọt tinh dầu "LÀI" & "VANI" vào ống nghiệm
-  verticalPipetteSolvent: '/assets/aistudio/image_0f1d3808.png', // Nhỏ giọt góc 90° khảo sát dung môi và nước cất
-  clarityInspectionCup: '/assets/aistudio/image_320a4e50.png', // Kiểm tra độ trong suốt không đục của cốc dung môi
+  infographic9Steps: import.meta.env.BASE_URL + 'assets/aistudio/4a90ae30.png', // Infographic chuẩn 9 bước sản xuất Floris
+  pipetteDroppingTestTube: import.meta.env.BASE_URL + 'assets/aistudio/6d8dd347.png', // Thực hành nhỏ giọt tinh dầu "LÀI" & "VANI" vào ống nghiệm
+  verticalPipetteSolvent: import.meta.env.BASE_URL + 'assets/aistudio/0f1d3808.png', // Nhỏ giọt góc 90° khảo sát dung môi và nước cất
+  clarityInspectionCup: import.meta.env.BASE_URL + 'assets/aistudio/320a4e50.png', // Kiểm tra độ trong suốt không đục của cốc dung môi
 };
 
 export const INGREDIENT_CATALOG: Record<'top' | 'heart' | 'base', PerfumeIngredient[]> = {
@@ -546,7 +546,7 @@ export const GROUP_LAB_REPORT_DATA = {
       subtitle: 'Cân bằng dịu nhẹ (10% cốt hương)',
       totalFinishedPct: 10,
       totalVolumeMl: '1,00 mL cốt hương (20 giọt) + 9,00 mL dung môi (180 giọt)',
-      imageUrl: '/assets/aistudio/image_7b513f70.png',
+      imageUrl: import.meta.env.BASE_URL + 'assets/aistudio/7b513f70.png',
       items: [
         { name: 'Hoa nhài 🌼', finishedPct: 1.0, blendPct: 10, ml10: '0,10 mL', drops: '2 giọt' },
         { name: 'Đào 🍑', finishedPct: 2.0, blendPct: 20, ml10: '0,20 mL', drops: '4 giọt' },
@@ -561,7 +561,7 @@ export const GROUP_LAB_REPORT_DATA = {
       subtitle: 'Tăng hương đầu Hoa nhài (20% cốt hương)',
       totalFinishedPct: 20,
       totalVolumeMl: '2,00 mL cốt hương (40 giọt) + 8,00 mL dung môi (160 giọt)',
-      imageUrl: '/assets/aistudio/image_758aa176.png',
+      imageUrl: import.meta.env.BASE_URL + 'assets/aistudio/758aa176.png',
       items: [
         { name: 'Hoa nhài 🌼', finishedPct: 6.0, blendPct: 30, ml10: '0,60 mL', drops: '12 giọt' },
         { name: 'Đào 🍑', finishedPct: 4.0, blendPct: 20, ml10: '0,40 mL', drops: '8 giọt' },
@@ -576,7 +576,7 @@ export const GROUP_LAB_REPORT_DATA = {
       subtitle: 'Tăng hương cuối Xạ hương & Vanilla (20% cốt hương)',
       totalFinishedPct: 20,
       totalVolumeMl: '2,00 mL cốt hương (40 giọt) + 8,00 mL dung môi (160 giọt)',
-      imageUrl: '/assets/aistudio/image_83106fcd.png',
+      imageUrl: import.meta.env.BASE_URL + 'assets/aistudio/83106fcd.png',
       items: [
         { name: 'Hoa nhài 🌼', finishedPct: 4.0, blendPct: 20, ml10: '0,40 mL', drops: '8 giọt' },
         { name: 'Đào 🍑', finishedPct: 4.0, blendPct: 20, ml10: '0,40 mL', drops: '8 giọt' },
