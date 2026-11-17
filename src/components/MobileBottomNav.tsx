@@ -6,7 +6,6 @@ import {
   Bot,
   BookOpen,
   Bookmark,
-  Sparkles,
   FileCode,
 } from 'lucide-react';
 
@@ -26,38 +25,17 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   savedCount,
 }) => {
   const navItems = [
-    {
-      id: 'main' as const,
-      label: 'Trang chủ',
-      icon: Home,
-    },
-    {
-      id: 'experimental' as const,
-      label: 'Thực nghiệm',
-      icon: FlaskConical,
-      badge: 'Gốc',
-    },
-    {
-      id: 'csv' as const,
-      label: 'Bảng tính',
-      icon: FileSpreadsheet,
-    },
-    {
-      id: 'ai' as const,
-      label: 'Tư vấn AI',
-      icon: Bot,
-    },
-    {
-      id: 'python' as const,
-      label: 'Python',
-      icon: FileCode,
-    },
+    { id: 'main' as const, label: 'Trang chủ', icon: Home },
+    { id: 'experimental' as const, label: 'Mẫu gốc', icon: FlaskConical },
+    { id: 'csv' as const, label: 'Bảng tính', icon: FileSpreadsheet },
+    { id: 'ai' as const, label: 'AI hương', icon: Bot },
+    { id: 'python' as const, label: 'Python', icon: FileCode },
   ];
 
   return (
     <nav
       aria-label="Thanh điều hướng di động"
-      className="fixed bottom-0 inset-x-0 z-40 md:hidden bg-[#FAF8F5]/95 backdrop-blur-md border-t border-[#E8E1D5] px-2 py-1.5 shadow-[0_-4px_20px_rgba(45,58,47,0.08)] flex items-center justify-around select-none"
+      className="fixed bottom-0 inset-x-0 z-40 md:hidden bg-[#FFFDF8]/95 backdrop-blur-md border-t border-[#FBCFE8] px-1.5 py-1.5 shadow-[0_-6px_24px_rgba(236,72,153,0.1)] flex items-center justify-around select-none"
     >
       {navItems.map((item) => {
         const Icon = item.icon;
@@ -70,59 +48,47 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               onChangePage(item.id);
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
-            className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all relative min-h-[48px] min-w-[56px] ${
+            className={`flex flex-col items-center justify-center py-1 px-1 flex-1 min-w-0 rounded-2xl transition-all min-h-[46px] ${
               isActive
-                ? 'text-[#245437] font-bold bg-[#EEF5F0]'
-                : 'text-[#617366] hover:text-[#1F2F23] font-medium'
+                ? 'text-[#BE185D] font-bold bg-[#FCE7F3] border border-[#F9A8D4]/60'
+                : 'text-[#5C6B5F] hover:text-[#2B342D] font-semibold'
             }`}
           >
-            <div className="relative flex items-center justify-center">
-              <Icon className={`w-5 h-5 ${isActive ? 'text-[#3B7A57] scale-110' : 'text-[#718276]'} transition-transform`} />
-              {item.badge && !isActive && (
-                <span className="absolute -top-1.5 -right-3 text-[9px] font-mono px-1 rounded-full bg-[#EEF5F0] text-[#2D5E41] border border-[#CFE2D4]">
-                  {item.badge}
-                </span>
-              )}
-            </div>
-            <span className="text-[10px] mt-1 leading-tight tracking-tight">
+            <Icon className={`w-4 h-4 ${isActive ? 'text-[#DB2777]' : 'text-[#7A6B72]'}`} />
+            <span className="text-[10px] mt-0.5 leading-tight whitespace-nowrap truncate max-w-full">
               {item.label}
             </span>
-            {isActive && (
-              <span className="w-1.5 h-1.5 rounded-full bg-[#3B7A57] mt-0.5" />
-            )}
           </button>
         );
       })}
 
-      {/* Quick Action: Pop-up Phiếu thực hành */}
       <button
         type="button"
         onClick={onOpenExperimentalPopup}
-        className="flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all text-[#617366] hover:text-[#1F2F23] font-medium min-h-[48px] min-w-[52px]"
-        title="Xem nhanh phiếu thực hành dạng pop-up"
+        className="flex flex-col items-center justify-center py-1 px-1 flex-1 min-w-0 rounded-2xl text-[#15803D] hover:bg-[#ECFDF3] font-semibold min-h-[46px]"
+        title="Phiếu mẫu"
       >
-        <BookOpen className="w-5 h-5 text-[#8E9E92]" />
-        <span className="text-[10px] mt-1 leading-tight tracking-tight">
-          Phiếu popup
+        <BookOpen className="w-4 h-4 text-[#16A34A]" />
+        <span className="text-[10px] mt-0.5 leading-tight whitespace-nowrap">
+          Phiếu
         </span>
       </button>
 
-      {/* Quick Action: Saved Formulas Drawer */}
       <button
         type="button"
         onClick={onOpenSavedFormulas}
-        className="flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all text-[#617366] hover:text-[#1F2F23] font-medium min-h-[48px] min-w-[52px] relative"
-        title="Danh sách công thức đã lưu"
+        className="flex flex-col items-center justify-center py-1 px-1 flex-1 min-w-0 rounded-2xl text-[#92400E] hover:bg-[#FEF3C7] font-semibold min-h-[46px] relative"
+        title="Đã lưu"
       >
         <div className="relative">
-          <Bookmark className="w-5 h-5 text-[#D49A3D]" />
+          <Bookmark className="w-4 h-4 text-[#D97706]" />
           {savedCount > 0 && (
-            <span className="absolute -top-1.5 -right-2 text-[9px] font-mono font-bold w-4 h-4 rounded-full bg-[#D49A3D] text-white flex items-center justify-center">
+            <span className="absolute -top-1.5 -right-2 text-[9px] font-mono font-bold w-4 h-4 rounded-full bg-[#EC4899] text-white flex items-center justify-center">
               {savedCount}
             </span>
           )}
         </div>
-        <span className="text-[10px] mt-1 leading-tight tracking-tight">
+        <span className="text-[10px] mt-0.5 leading-tight whitespace-nowrap">
           Đã lưu
         </span>
       </button>

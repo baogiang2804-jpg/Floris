@@ -3,10 +3,8 @@ import {
   AlertTriangle,
   CheckCircle2,
   Sparkles,
-  Info,
   Droplet,
   Layers,
-  ShieldAlert,
   Undo2,
   History,
   RotateCcw,
@@ -15,10 +13,12 @@ import {
   ChevronDown,
   Plus,
   Minus,
+  Info,
 } from 'lucide-react';
 import { INGREDIENT_CATALOG, PerfumeIngredient } from '../data/perfumeData';
 import { CalculatedIngredient, FormulaSlot } from '../utils/perfumeCalculations';
 import { EditHistorySnapshot } from '../types/history';
+import { ScentFamilyVisualBadge } from './SpringDecorations';
 
 interface OlfactoryPyramidSlidersProps {
   slots: FormulaSlot[];
@@ -59,112 +59,110 @@ export const OlfactoryPyramidSliders: React.FC<OlfactoryPyramidSlidersProps> = (
   onOpenAddCustomIngredient,
   onUpdateSlotPercentage,
   onUpdateSlotIngredient,
-  onUpdateSlotCustomName,
   onAutoBalance,
   onResetDefault,
 }) => {
   const [showHistoryDropdown, setShowHistoryDropdown] = useState(false);
+  const [openDescMap, setOpenDescMap] = useState<Record<string, boolean>>({});
 
   const tiersConfig = [
     {
       tier: 'top' as const,
-      label: 'Tầng Hương Đầu (Top Notes)',
+      emoji: '🌼',
+      label: 'Tầng Đầu',
+      shortRole: '15–30 phút',
       slotKeys: ['top1', 'top2'] as const,
       subtotal: tierTotals.top,
-      recommended: '20 - 30%',
-      role: 'Ấn tượng ban đầu, bốc hơi nhanh (15 - 30 phút)',
-      borderColor: 'border-yellow-500/40',
-      badgeBg: 'bg-yellow-500/10 text-yellow-300 border-yellow-500/30',
-      barColor: 'bg-yellow-500',
-      sliderTrackHex: '#eab308',
+      recommended: '20–40%',
+      wrapClass: 'bg-gradient-to-br from-[#FFFDF2] to-[#FEF9C3]/55 border-[#FDE68A]',
+      badgeClass: 'bg-[#FEF3C7] text-[#92400E] border-[#FCD34D]',
+      sliderFillHex: '#F59E0B',
+      sliderTrackHex: '#FEF3C7',
     },
     {
       tier: 'heart' as const,
-      label: 'Tầng Hương Giữa (Heart/Middle Notes)',
+      emoji: '🌸',
+      label: 'Tầng Giữa',
+      shortRole: '2–4 giờ',
       slotKeys: ['heart1', 'heart2'] as const,
       subtotal: tierTotals.heart,
-      recommended: '40 - 50%',
-      role: 'Trái tim và linh hồn của công thức, bền mùi (2 - 4 giờ)',
-      borderColor: 'border-rose-500/40',
-      badgeBg: 'bg-rose-500/10 text-rose-300 border-rose-500/30',
-      barColor: 'bg-rose-500',
-      sliderTrackHex: '#f43f5e',
+      recommended: '30–50%',
+      wrapClass: 'bg-gradient-to-br from-[#FFF5F8] to-[#FCE7F3]/60 border-[#FBCFE8]',
+      badgeClass: 'bg-[#FCE7F3] text-[#BE185D] border-[#F9A8D4]',
+      sliderFillHex: '#EC4899',
+      sliderTrackHex: '#FCE7F3',
     },
     {
       tier: 'base' as const,
-      label: 'Tầng Hương Cuối (Base Notes)',
+      emoji: '🌿',
+      label: 'Tầng Cuối',
+      shortRole: '6–12+ giờ',
       slotKeys: ['base1', 'base2'] as const,
       subtotal: tierTotals.base,
-      recommended: '20 - 30%',
-      role: 'Lớp nền vững chắc, neo giữ hương thơm (6 - 12+ giờ)',
-      borderColor: 'border-amber-700/40',
-      badgeBg: 'bg-amber-600/10 text-amber-300 border-amber-600/30',
-      barColor: 'bg-amber-600',
-      sliderTrackHex: '#d97706',
+      recommended: '20–30%',
+      wrapClass: 'bg-gradient-to-br from-[#F4FDF7] to-[#DCFCE7]/55 border-[#BBF7D0]',
+      badgeClass: 'bg-[#DCFCE7] text-[#15803D] border-[#86EFAC]',
+      sliderFillHex: '#22C55E',
+      sliderTrackHex: '#DCFCE7',
     },
   ];
 
   return (
-    <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-6 backdrop-blur-sm shadow-xl">
-      {/* Section Header - Stacked on Mobile */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 mb-5">
-        <div>
-          <span className="text-xs font-mono uppercase tracking-wider text-amber-400/90 font-semibold">
-            Bước 3: Kim Tự Tháp 3 Tầng & 6 Nguyên Liệu
+    <div className="spring-card p-4 sm:p-6 space-y-5">
+      {/* Compact Header & Controls */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <span className="px-3 py-1 rounded-full bg-[#FEF3C7] text-[#92400E] text-xs font-bold border border-[#FCD34D] whitespace-nowrap">
+            Bước 3 · 3 tầng hương
           </span>
-          <h2 className="text-lg sm:text-xl font-serif font-bold text-slate-100 flex items-center gap-2 mt-0.5">
-            <Layers className="w-5 h-5 text-amber-400 shrink-0" />
-            <span>Điều Chỉnh Tỉ Lệ (%) & Tính Thể Tích (mL)</span>
+          <h2 className="text-lg sm:text-xl font-bold text-[#2B342D] flex items-center gap-2">
+            <Layers className="w-5 h-5 text-[#EC4899] shrink-0" />
+            <span>Chỉnh tỷ lệ pha chế</span>
           </h2>
         </div>
 
-        {/* Action Controls - Stacked Grid on Mobile for easy finger tap */}
         <div className="grid grid-cols-2 sm:flex sm:items-center sm:flex-wrap gap-2 relative w-full lg:w-auto">
-          {/* Quick Undo Button */}
           <button
             onClick={onUndo}
             disabled={!canUndo}
             type="button"
-            className={`text-xs px-3 py-2.5 sm:py-1.5 rounded-xl sm:rounded-lg border transition-all flex items-center justify-center gap-1.5 font-medium shadow-sm ${
+            className={`text-xs px-3 py-2 sm:py-1.5 rounded-2xl border transition-all flex items-center justify-center gap-1.5 font-bold ${
               canUndo
-                ? 'bg-slate-800 hover:bg-slate-700 text-amber-300 border-amber-500/40 hover:border-amber-400 active:scale-95'
-                : 'bg-slate-950/60 text-slate-600 border-slate-800 cursor-not-allowed'
+                ? 'bg-[#FFFDF0] hover:bg-[#FEF3C7] text-[#92400E] border-[#FDE68A] active:scale-95'
+                : 'bg-[#F9FAFB] text-[#9CA3AF] border-[#E5E7EB] cursor-not-allowed'
             }`}
-            title={canUndo ? 'Hoàn tác bước gần nhất (Phím tắt: Ctrl + Z)' : 'Chưa có bước chỉnh sửa nào để hoàn tác'}
+            title="Hoàn tác (Ctrl+Z)"
           >
-            <Undo2 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <Undo2 className="w-3.5 h-3.5 shrink-0" />
             <span>Hoàn tác</span>
             {editHistory.length > 0 && (
-              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300">
+              <span className="text-[10px] font-mono px-1.5 rounded-full bg-[#FDE68A] text-[#92400E]">
                 {editHistory.length}
               </span>
             )}
           </button>
 
-          {/* History Dropdown Trigger */}
           <div className="relative">
             <button
               onClick={() => setShowHistoryDropdown((prev) => !prev)}
               type="button"
-              className={`w-full text-xs px-3 py-2.5 sm:py-1.5 rounded-xl sm:rounded-lg border transition-all flex items-center justify-center gap-1 font-medium ${
+              className={`w-full text-xs px-3 py-2 sm:py-1.5 rounded-2xl border transition-all flex items-center justify-center gap-1 font-bold ${
                 showHistoryDropdown
-                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                  : 'bg-slate-950/80 hover:bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'
+                  ? 'bg-[#FCE7F3] text-[#BE185D] border-[#F472B6]'
+                  : 'bg-white hover:bg-[#FFF5F8] text-[#4A4D48] border-[#F3DCE4]'
               }`}
-              title="Xem 5 phiên bản chỉnh sửa gần nhất đã lưu trong localStorage"
             >
-              <History className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+              <History className="w-3.5 h-3.5 text-[#DB2777] shrink-0" />
               <span>Lịch sử ({editHistory.length}/5)</span>
-              <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${showHistoryDropdown ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-3 h-3 transition-transform ${showHistoryDropdown ? 'rotate-180' : ''}`} />
             </button>
 
-            {/* Dropdown Menu showing up to 5 recent edit versions */}
             {showHistoryDropdown && (
-              <div className="absolute right-0 top-full mt-2 w-72 sm:w-96 rounded-xl bg-slate-900 border border-slate-700 shadow-2xl p-3 z-40 space-y-2 animate-fadeIn">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                  <span className="text-xs font-mono font-semibold text-slate-200 flex items-center gap-1.5">
-                    <History className="w-3.5 h-3.5 text-cyan-400" />
-                    5 Bước Chỉnh Sửa Gần Nhất
+              <div className="absolute right-0 top-full mt-2 w-72 sm:w-96 rounded-3xl bg-white border-2 border-[#FBCFE8] shadow-xl p-4 z-40 space-y-2.5">
+                <div className="flex items-center justify-between pb-2 border-b border-[#F3DCE4]">
+                  <span className="text-xs font-bold text-[#2B342D] flex items-center gap-1.5">
+                    <History className="w-3.5 h-3.5 text-[#DB2777]" />
+                    5 bước gần nhất
                   </span>
                   {editHistory.length > 0 && (
                     <button
@@ -172,48 +170,36 @@ export const OlfactoryPyramidSliders: React.FC<OlfactoryPyramidSlidersProps> = (
                         onClearHistory();
                         setShowHistoryDropdown(false);
                       }}
-                      className="text-[11px] text-slate-500 hover:text-rose-400 transition-colors flex items-center gap-1"
+                      className="text-[11px] text-[#BE185D] hover:underline flex items-center gap-1 font-bold"
                     >
                       <Trash2 className="w-3 h-3" />
-                      <span>Xóa lịch sử</span>
+                      <span>Xóa</span>
                     </button>
                   )}
                 </div>
 
                 {editHistory.length === 0 ? (
-                  <div className="py-6 text-center text-xs text-slate-500">
-                    Chưa có lịch sử chỉnh sửa nào trong phiên làm việc. Hãy thử kéo một thanh trượt để ghi lại bước thay đổi.
-                  </div>
+                  <p className="py-4 text-center text-xs text-[#5C6B5F]">
+                    Kéo thanh trượt để tự lưu lịch sử.
+                  </p>
                 ) : (
-                  <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                     {editHistory.map((snapshot, idx) => (
                       <div
                         key={snapshot.id}
-                        className="p-2.5 rounded-lg bg-slate-950/70 border border-slate-800 hover:border-amber-500/40 transition-all flex items-start justify-between gap-2"
+                        className="p-2.5 rounded-2xl bg-[#FFFDF8] border border-[#F3DCE4] flex items-start justify-between gap-2"
                       >
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                              Bước -{idx + 1}
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2 text-[10px] font-mono text-[#5C6B5F]">
+                            <span className="px-1.5 py-0.5 rounded-full bg-[#FCE7F3] text-[#BE185D] font-bold">
+                              -{idx + 1}
                             </span>
-                            <span className="text-[11px] font-mono text-slate-400 flex items-center gap-1">
+                            <span className="flex items-center gap-1">
                               <Clock className="w-3 h-3" />
                               {snapshot.timestamp}
                             </span>
                           </div>
-                          <p className="text-xs text-slate-200 font-medium">
-                            {snapshot.actionSummary}
-                          </p>
-                          <div className="flex items-center gap-2 text-[10px] font-mono text-slate-400">
-                            <span>Đầu: {snapshot.tierTotals.top}%</span>
-                            <span>•</span>
-                            <span>Giữa: {snapshot.tierTotals.heart}%</span>
-                            <span>•</span>
-                            <span>Cuối: {snapshot.tierTotals.base}%</span>
-                            <span className="text-amber-400 font-bold ml-1">
-                              ({snapshot.totalPercentage}%)
-                            </span>
-                          </div>
+                          <p className="text-xs font-bold text-[#2B342D]">{snapshot.actionSummary}</p>
                         </div>
 
                         <button
@@ -221,8 +207,7 @@ export const OlfactoryPyramidSliders: React.FC<OlfactoryPyramidSlidersProps> = (
                             onRestoreHistorySnapshot(snapshot);
                             setShowHistoryDropdown(false);
                           }}
-                          className="px-2 py-1 rounded bg-amber-600/20 hover:bg-amber-600/40 text-amber-300 border border-amber-500/30 text-[11px] font-medium transition-all shrink-0 active:scale-95"
-                          title="Quay lại trạng thái phiên bản này"
+                          className="px-2.5 py-1 rounded-xl bg-[#DCFCE7] hover:bg-[#BBF7D0] text-[#15803D] text-[11px] font-bold shrink-0"
                         >
                           Khôi phục
                         </button>
@@ -230,10 +215,6 @@ export const OlfactoryPyramidSliders: React.FC<OlfactoryPyramidSlidersProps> = (
                     ))}
                   </div>
                 )}
-
-                <div className="pt-2 border-t border-slate-800 text-[10px] text-slate-500 text-center font-mono">
-                  Được tự động lưu vào localStorage (tối đa 5 phiên bản gần nhất)
-                </div>
               </div>
             )}
           </div>
@@ -241,368 +222,299 @@ export const OlfactoryPyramidSliders: React.FC<OlfactoryPyramidSlidersProps> = (
           <button
             onClick={onResetDefault}
             type="button"
-            className="text-xs text-slate-300 hover:text-slate-100 px-3 py-2.5 sm:py-1.5 rounded-xl sm:rounded-lg border border-slate-800 hover:border-slate-700 bg-slate-950/60 transition-all flex items-center justify-center gap-1.5"
+            className="text-xs text-[#4A4D48] hover:text-[#2B342D] px-3 py-2 sm:py-1.5 rounded-2xl border border-[#F3DCE4] bg-white hover:bg-[#FFF5F8] transition-all flex items-center justify-center gap-1.5 font-bold"
           >
-            <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+            <RotateCcw className="w-3.5 h-3.5 text-[#5C6B5F]" />
             <span>Mặc định</span>
           </button>
 
           <button
             onClick={onAutoBalance}
             type="button"
-            className="text-xs px-3 py-2.5 sm:py-1.5 rounded-xl sm:rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition-all flex items-center justify-center gap-1.5 font-medium shadow-sm active:scale-95"
+            className="text-xs px-4 py-2 sm:py-1.5 rounded-2xl bg-gradient-to-r from-[#EC4899] to-[#F472B6] hover:from-[#DB2777] hover:to-[#EC4899] text-white transition-all flex items-center justify-center gap-1.5 font-bold shadow-xs active:scale-95"
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <span>Cân Bằng 100%</span>
+            <Sparkles className="w-3.5 h-3.5 shrink-0" />
+            <span>Cân bằng 100%</span>
           </button>
         </div>
       </div>
 
-      {/* Validation Banner (CẢNH BÁO KHI TỔNG KHÔNG HỢP LỆ) */}
+      {/* Live Visual Ratio Validation Bar */}
       <div
-        className={`p-4 rounded-xl border mb-6 transition-all ${
+        className={`p-4 rounded-3xl border-2 transition-all space-y-2.5 ${
           isValidTotal
-            ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200'
-            : difference > 0
-            ? 'bg-amber-950/30 border-amber-500/50 text-amber-200'
-            : 'bg-rose-950/40 border-rose-500/60 text-rose-200'
+            ? 'bg-[#ECFDF3] border-[#86EFAC] text-[#14532D]'
+            : 'bg-[#FFFBEB] border-[#FCD34D] text-[#78350F]'
         }`}
       >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-start sm:items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5">
             {isValidTotal ? (
-              <div className="w-9 h-9 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-              </div>
+              <CheckCircle2 className="w-5 h-5 text-[#16A34A] shrink-0" />
             ) : (
-              <div className="w-9 h-9 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-5 h-5 text-amber-400 animate-pulse" />
-              </div>
+              <AlertTriangle className="w-5 h-5 text-[#D97706] shrink-0" />
             )}
-
-            <div>
-              <p className="font-semibold text-sm">
-                {isValidTotal && (
-                  <span>✓ Tổng tỉ lệ chuẩn xác 100.0% — Công thức đạt chuẩn hợp lệ!</span>
-                )}
-                {!isValidTotal && difference > 0 && (
-                  <span>
-                    ⚠️ CẢNH BÁO: Tổng tỉ lệ hiện tại là {totalPercentage}% (Còn thiếu{' '}
-                    <strong className="underline decoration-amber-400">{difference}%</strong>).
-                  </span>
-                )}
-                {!isValidTotal && difference < 0 && (
-                  <span>
-                    ⛔ CẢNH BÁO: Tổng tỉ lệ vượt quá 100% ({totalPercentage}%, dư{' '}
-                    <strong className="underline decoration-rose-400">
-                      {Math.abs(difference)}%
-                    </strong>
-                    ).
-                  </span>
-                )}
-              </p>
-              <p className="text-xs opacity-80 mt-0.5">
-                {isValidTotal
-                  ? `Sẵn sàng pha chế cho bình ${totalVolume} mL. Các thông số mL và giọt đã được tính toán đồng bộ.`
-                  : 'Quy tắc pha chế nước hoa yêu cầu tổng hợp hương phải đạt đúng 100% trước khi xuất công thức và phân tích AI.'}
-              </p>
-            </div>
+            <p className="font-bold text-sm">
+              {isValidTotal
+                ? `Tổng chuẩn 100% · Sẵn sàng pha ${totalVolume} mL`
+                : difference > 0
+                ? `Đang đạt ${totalPercentage}% · Còn thiếu ${difference}%`
+                : `Đang đạt ${totalPercentage}% · Dư ${Math.abs(difference)}%`}
+            </p>
           </div>
 
           {!isValidTotal && (
             <button
               onClick={onAutoBalance}
               type="button"
-              className="w-full sm:w-auto shrink-0 px-4 py-2.5 sm:py-2 rounded-xl sm:rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-all shadow-md active:scale-95 text-center"
+              className="px-4 py-2 rounded-2xl bg-[#F59E0B] hover:bg-[#D97706] text-white font-bold text-xs transition-all shadow-xs active:scale-95 whitespace-nowrap"
             >
-              Cân Bằng Về 100% Ngay
+              Cân 100% ngay
             </button>
           )}
         </div>
 
-        {/* Total Progress Bar */}
-        <div className="mt-3 w-full bg-slate-950/80 rounded-full h-3 sm:h-2.5 overflow-hidden flex border border-slate-800">
+        {/* Stacked Tier Progress Bar */}
+        <div className="w-full bg-white rounded-full h-3.5 overflow-hidden flex border border-black/5 shadow-inner">
           <div
             style={{ width: `${Math.min(100, tierTotals.top)}%` }}
-            className="bg-yellow-400 transition-all duration-300"
+            className="bg-[#FACC15] transition-all duration-300"
             title={`Tầng đầu: ${tierTotals.top}%`}
           />
           <div
             style={{ width: `${Math.min(100, tierTotals.heart)}%` }}
-            className="bg-rose-500 transition-all duration-300"
+            className="bg-[#F472B6] transition-all duration-300"
             title={`Tầng giữa: ${tierTotals.heart}%`}
           />
           <div
             style={{ width: `${Math.min(100, tierTotals.base)}%` }}
-            className="bg-amber-600 transition-all duration-300"
+            className="bg-[#4ADE80] transition-all duration-300"
             title={`Tầng cuối: ${tierTotals.base}%`}
           />
         </div>
       </div>
 
-      {/* 3 Tiers Container — Stacked Cards on Mobile */}
-      <div className="flex flex-col gap-6">
-        {tiersConfig.map((tierGroup) => {
-          return (
-            <div
-              key={tierGroup.tier}
-              className={`p-3.5 sm:p-5 rounded-2xl bg-slate-950/40 border ${tierGroup.borderColor} relative flex flex-col gap-4`}
-            >
-              {/* Tier Header — Stacked on Mobile, Row on Tablet/Desktop */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-800">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2.5">
-                  <span
-                    className={`self-start text-xs font-mono font-semibold px-2.5 py-1 rounded-lg border ${tierGroup.badgeBg}`}
-                  >
-                    {tierGroup.label}
-                  </span>
-                  <span className="text-xs text-slate-400">
-                    {tierGroup.role}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between sm:justify-end gap-3 text-xs font-mono bg-slate-900/70 sm:bg-transparent px-3 py-2 sm:p-0 rounded-xl border border-slate-800/80 sm:border-0">
-                  <span className="text-slate-400">
-                    Khuyến nghị: <strong className="text-slate-200">{tierGroup.recommended}</strong>
-                  </span>
-                  <span className="text-slate-600">|</span>
-                  <span className="text-slate-300">
-                    Tổng tầng:{' '}
-                    <strong
-                      className={`text-sm ${
-                        tierGroup.subtotal > 0 ? 'text-amber-400' : 'text-slate-500'
-                      }`}
-                    >
-                      {tierGroup.subtotal}%
-                    </strong>
-                  </span>
-                </div>
+      {/* 3 Tiers Grid */}
+      <div className="flex flex-col gap-5">
+        {tiersConfig.map((tierGroup) => (
+          <div
+            key={tierGroup.tier}
+            className={`p-4 sm:p-5 rounded-3xl border-2 flex flex-col gap-4 ${tierGroup.wrapClass}`}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-black/5">
+              <div className="flex items-center gap-2">
+                <span className={`text-xs font-bold px-3 py-1 rounded-full border ${tierGroup.badgeClass}`}>
+                  {tierGroup.emoji} {tierGroup.label}
+                </span>
+                <span className="text-xs font-semibold text-[#5C6B5F]">
+                  {tierGroup.shortRole}
+                </span>
               </div>
 
-              {/* 2 Ingredients in this tier — Stacked Vertical Cards on Mobile, 2 Columns on Desktop */}
-              <div className="flex flex-col lg:grid lg:grid-cols-2 gap-4">
-                {tierGroup.slotKeys.map((slotKey, idx) => {
-                  const slot = slots.find((s) => s.key === slotKey)!;
-                  const calculated = calculatedIngredients.find((c) => c.slotKey === slotKey)!;
-                  const catalogOptions = INGREDIENT_CATALOG[tierGroup.tier];
-                  const sliderFillPct = Math.min(100, Math.round((slot.percentage / 50) * 100));
+              <div className="flex items-center gap-2 text-xs font-mono">
+                <span className="text-[#5C6B5F]">Gợi ý {tierGroup.recommended}</span>
+                <span className="px-2.5 py-0.5 rounded-full bg-white font-bold text-[#2B342D] border border-black/10">
+                  {tierGroup.subtotal}%
+                </span>
+              </div>
+            </div>
 
-                  return (
-                    <div
-                      key={slotKey}
-                      className="p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 transition-all flex flex-col gap-4 shadow-md"
-                    >
-                      {/* 1. Stacked Card Header & Ingredient Selector */}
-                      <div className="flex flex-col gap-2.5">
-                        {/* Stacked Top Title & Scent Family Badge */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                          <label className="text-xs sm:text-sm font-semibold text-slate-100 flex items-center gap-2">
-                            <span className="w-6 h-6 rounded-full bg-slate-800 border border-amber-500/30 text-xs font-mono flex items-center justify-center text-amber-400 font-bold shrink-0">
-                              #{slot.slotNumber}
-                            </span>
-                            <span>
-                              Nguyên liệu {idx + 1} (Tầng {tierGroup.tier === 'top' ? 'Đầu' : tierGroup.tier === 'heart' ? 'Giữa' : 'Cuối'})
-                            </span>
-                          </label>
+            <div className="flex flex-col lg:grid lg:grid-cols-2 gap-4">
+              {tierGroup.slotKeys.map((slotKey, idx) => {
+                const slot = slots.find((s) => s.key === slotKey)!;
+                const calculated = calculatedIngredients.find((c) => c.slotKey === slotKey)!;
+                const catalogOptions = INGREDIENT_CATALOG[tierGroup.tier];
+                const sliderFillPct = Math.min(100, Math.round((slot.percentage / 50) * 100));
+                const activeItem =
+                  customIngredients[tierGroup.tier]?.find((i) => i.id === slot.ingredientId) ||
+                  INGREDIENT_CATALOG[tierGroup.tier].find((i) => i.id === slot.ingredientId);
+                const isDescOpen = !!openDescMap[slotKey];
 
-                          <span className="self-start sm:self-auto text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-slate-950 border border-slate-800 text-amber-300/90">
-                            {calculated.scentFamily}
-                          </span>
-                        </div>
+                return (
+                  <div
+                    key={slotKey}
+                    className="p-4 rounded-3xl bg-white/95 border border-[#F3DCE4] flex flex-col gap-3.5 shadow-xs min-w-0"
+                  >
+                    {/* Header: Slot Title + Visual Scent Icon Badge */}
+                    <div className="flex items-center justify-between gap-2 min-w-0">
+                      <label className="text-xs sm:text-sm font-bold text-[#2B342D] flex items-center gap-2 min-w-0">
+                        <span className="w-6 h-6 rounded-full bg-[#FCE7F3] text-[#BE185D] text-xs font-mono flex items-center justify-center font-bold shrink-0">
+                          {slot.slotNumber}
+                        </span>
+                        <span className="truncate">Nguyên liệu {idx + 1}</span>
+                      </label>
 
-                        {/* Finger-friendly Dropdown Select */}
-                        <select
-                          value={slot.ingredientId}
-                          onChange={(e) => {
-                            if (e.target.value === '__add_custom__') {
-                              onOpenAddCustomIngredient(slotKey, tierGroup.tier);
-                            } else {
-                              onUpdateSlotIngredient(slotKey, e.target.value);
-                            }
-                          }}
-                          className="w-full px-3.5 py-3 sm:py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm sm:text-xs font-medium text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                        >
-                          <optgroup label="Danh mục nguyên liệu tiêu chuẩn">
-                            {catalogOptions.map((item) => (
-                              <option key={item.id} value={item.id}>
-                                {item.name} — ({item.scientificName})
-                              </option>
-                            ))}
-                          </optgroup>
+                      <ScentFamilyVisualBadge
+                        scentFamily={calculated.scentFamily}
+                        name={calculated.name}
+                      />
+                    </div>
 
-                          {customIngredients[tierGroup.tier] && customIngredients[tierGroup.tier].length > 0 && (
-                            <optgroup label="Nguyên liệu do bạn tự thêm">
+                    {/* Dropdown + Info Toggle */}
+                    <div className="flex items-center gap-2 min-w-0">
+                      <select
+                        value={slot.ingredientId}
+                        onChange={(e) => {
+                          if (e.target.value === '__add_custom__') {
+                            onOpenAddCustomIngredient(slotKey, tierGroup.tier);
+                          } else {
+                            onUpdateSlotIngredient(slotKey, e.target.value);
+                          }
+                        }}
+                        className="flex-1 min-w-0 w-full px-3 sm:px-3.5 py-2.5 bg-[#FFFDF8] border border-[#EBC3D1] rounded-2xl text-xs sm:text-sm font-bold text-[#2B342D] focus:outline-none focus:ring-2 focus:ring-[#F472B6]/40 truncate"
+                      >
+                        <optgroup label="Nguyên liệu chuẩn">
+                          {catalogOptions.map((item) => (
+                            <option key={item.id} value={item.id}>
+                              {item.name}
+                            </option>
+                          ))}
+                        </optgroup>
+
+                        {customIngredients[tierGroup.tier] &&
+                          customIngredients[tierGroup.tier].length > 0 && (
+                            <optgroup label="Nguyên liệu tự thêm">
                               {customIngredients[tierGroup.tier].map((item) => (
                                 <option key={item.id} value={item.id}>
-                                  ⭐ {item.name} — ({item.scientificName})
+                                  ⭐ {item.name}
                                 </option>
                               ))}
                             </optgroup>
                           )}
 
-                          <option value="__add_custom__" className="text-amber-400 font-bold bg-slate-900">
-                            ✨ + Thêm nguyên liệu của riêng bạn...
-                          </option>
-                        </select>
+                        <option value="__add_custom__">✨ + Thêm nguyên liệu mới...</option>
+                      </select>
 
-                        {/* Stacked Full-Width Custom Ingredient Button on Mobile */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => onOpenAddCustomIngredient(slotKey, tierGroup.tier)}
-                            className="w-full sm:w-auto py-2 sm:py-1 px-3 sm:px-0 rounded-xl sm:rounded-none bg-amber-500/10 sm:bg-transparent border border-amber-500/30 sm:border-0 text-xs sm:text-[11px] text-amber-300 hover:text-amber-200 flex items-center justify-center sm:justify-start gap-1.5 font-medium transition-all active:scale-98"
-                            title="Mở màn hình thêm nguyên liệu tùy chỉnh"
-                          >
-                            <Plus className="w-3.5 h-3.5 shrink-0" />
-                            <span>Thêm nguyên liệu của riêng bạn</span>
-                          </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOpenDescMap((prev) => ({ ...prev, [slotKey]: !prev[slotKey] }))
+                        }
+                        className="w-10 h-10 rounded-2xl bg-[#FFF5F8] hover:bg-[#FCE7F3] text-[#BE185D] border border-[#FBCFE8] flex items-center justify-center shrink-0 transition-colors"
+                        title="Xem chi tiết mùi & hóa học"
+                        aria-label="Xem mô tả nguyên liệu"
+                      >
+                        <Info className="w-4 h-4" />
+                      </button>
 
-                          {customIngredients[tierGroup.tier] && customIngredients[tierGroup.tier].length > 0 && (
-                            <span className="text-[10px] font-mono text-slate-500 text-center sm:text-right">
-                              ({customIngredients[tierGroup.tier].length} nguyên liệu tự tạo)
-                            </span>
-                          )}
-                        </div>
+                      <button
+                        type="button"
+                        onClick={() => onOpenAddCustomIngredient(slotKey, tierGroup.tier)}
+                        className="w-10 h-10 rounded-2xl bg-[#ECFDF3] hover:bg-[#DCFCE7] text-[#15803D] border border-[#86EFAC] flex items-center justify-center shrink-0 transition-colors"
+                        title="Thêm nguyên liệu tùy chỉnh"
+                        aria-label="Thêm nguyên liệu tùy chỉnh"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
 
-                        <p className="text-xs sm:text-[11px] text-slate-400 italic leading-relaxed bg-slate-950/40 p-2.5 rounded-xl border border-slate-800/60">
-                          {(customIngredients[tierGroup.tier]?.find((i) => i.id === slot.ingredientId) ||
-                            INGREDIENT_CATALOG[tierGroup.tier].find((i) => i.id === slot.ingredientId))
-                            ?.description}
-                        </p>
+                    {/* Accordion: Description only visible on click */}
+                    {isDescOpen && activeItem && (
+                      <div className="p-3 rounded-2xl bg-[#FFFDF8] border border-[#F3DCE4] text-xs text-[#4A4D48] space-y-1">
+                        <p className="font-semibold text-[#2B342D]">{activeItem.scientificName}</p>
+                        <p className="leading-relaxed">{activeItem.description}</p>
+                        {activeItem.chemicalCompounds && (
+                          <p className="font-mono text-[11px] text-[#9D174D]">
+                            {activeItem.chemicalCompounds}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Slider & Touch Steppers */}
+                    <div className="p-3.5 rounded-2xl bg-[#FFFDF8] border border-[#F6DCE5] space-y-3">
+                      <div className="grid grid-cols-5 sm:flex items-center justify-between gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onUpdateSlotPercentage(slotKey, Math.max(0, slot.percentage - 5))
+                          }
+                          className="min-h-[40px] sm:min-h-[34px] px-2 rounded-xl bg-[#FFF5F8] hover:bg-[#FCE7F3] text-[#BE185D] border border-[#FBCFE8] font-mono text-xs font-bold flex items-center justify-center"
+                        >
+                          -5%
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onUpdateSlotPercentage(slotKey, Math.max(0, slot.percentage - 1))
+                          }
+                          className="min-h-[40px] sm:min-h-[34px] px-2 rounded-xl bg-[#ECFDF3] hover:bg-[#DCFCE7] text-[#15803D] border border-[#BBF7D0] flex items-center justify-center"
+                          aria-label="Giảm 1%"
+                        >
+                          <Minus className="w-4 h-4" />
+                        </button>
+
+                        <input
+                          type="number"
+                          min={0}
+                          max={60}
+                          step={1}
+                          value={slot.percentage}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10);
+                            if (!isNaN(val)) {
+                              onUpdateSlotPercentage(slotKey, Math.max(0, Math.min(100, val)));
+                            }
+                          }}
+                          aria-label={`Tỉ lệ % cho ${calculated.name}`}
+                          className="w-full sm:w-16 min-h-[40px] sm:min-h-[34px] bg-white border-2 border-[#F472B6] rounded-xl text-center font-mono text-sm text-[#2B342D] font-bold focus:outline-none"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onUpdateSlotPercentage(slotKey, Math.min(100, slot.percentage + 1))
+                          }
+                          className="min-h-[40px] sm:min-h-[34px] px-2 rounded-xl bg-[#ECFDF3] hover:bg-[#DCFCE7] text-[#15803D] border border-[#BBF7D0] flex items-center justify-center"
+                          aria-label="Tăng 1%"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onUpdateSlotPercentage(slotKey, Math.min(100, slot.percentage + 5))
+                          }
+                          className="min-h-[40px] sm:min-h-[34px] px-2 rounded-xl bg-[#FFFDF0] hover:bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] font-mono text-xs font-bold flex items-center justify-center"
+                        >
+                          +5%
+                        </button>
                       </div>
 
-                      {/* 2. Stacked Finger-Friendly Slider & Touch Stepper Card */}
-                      <div className="flex flex-col gap-3 p-3.5 sm:p-4 rounded-2xl bg-slate-950/90 border border-slate-800/90">
-                        {/* Stacked Top Row: Label + Big Touch Stepper Controls */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                          <div className="flex items-center justify-between sm:justify-start gap-2">
-                            <span className="text-xs font-medium text-slate-300">
-                              Kéo trượt tỉ lệ hương:
-                            </span>
-                            <span className="sm:hidden text-base font-mono font-bold text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-lg border border-amber-500/30">
-                              {slot.percentage}%
-                            </span>
-                          </div>
+                      <div className="py-1">
+                        <input
+                          type="range"
+                          min={0}
+                          max={50}
+                          step={1}
+                          value={slot.percentage}
+                          onChange={(e) =>
+                            onUpdateSlotPercentage(slotKey, parseInt(e.target.value, 10))
+                          }
+                          style={{
+                            background: `linear-gradient(to right, ${tierGroup.sliderFillHex} 0%, ${tierGroup.sliderFillHex} ${sliderFillPct}%, ${tierGroup.sliderTrackHex} ${sliderFillPct}%, ${tierGroup.sliderTrackHex} 100%)`,
+                          }}
+                          className="pyramid-touch-slider w-full cursor-pointer"
+                        />
+                      </div>
 
-                          {/* Touch Stepper Buttons + Number Input (Easy to tap with thumbs on mobile) */}
-                          <div className="grid grid-cols-5 sm:flex items-center gap-1.5 w-full sm:w-auto">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                onUpdateSlotPercentage(slotKey, Math.max(0, slot.percentage - 5))
-                              }
-                              className="min-h-[44px] sm:min-h-[36px] py-2 px-1 rounded-xl bg-[#F4EFE6] hover:bg-[#EAE2D5] active:bg-[#DFD5C5] text-[#5A6A5E] border border-[#E0D8CB] font-mono text-xs font-semibold flex items-center justify-center transition-all active:scale-95 shadow-xs"
-                              title="Giảm 5%"
-                            >
-                              -5%
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                onUpdateSlotPercentage(slotKey, Math.max(0, slot.percentage - 1))
-                              }
-                              className="min-h-[44px] sm:min-h-[36px] py-2 px-1 rounded-xl bg-[#EEF5F0] hover:bg-[#E2EDE5] active:bg-[#D5E5DA] text-[#245236] border border-[#CFE2D4] font-mono text-sm font-bold flex items-center justify-center transition-all active:scale-95 shadow-xs"
-                              title="Giảm 1%"
-                            >
-                              <Minus className="w-4 h-4 stroke-[2.5]" />
-                            </button>
-
-                            <div className="relative flex items-center justify-center">
-                              <input
-                                type="number"
-                                min={0}
-                                max={60}
-                                step={1}
-                                value={slot.percentage}
-                                onChange={(e) => {
-                                  const val = parseInt(e.target.value, 10);
-                                  if (!isNaN(val)) {
-                                    onUpdateSlotPercentage(slotKey, Math.max(0, Math.min(100, val)));
-                                  }
-                                }}
-                                aria-label={`Tỉ lệ phần trăm cho ${calculated.name}`}
-                                className="w-full sm:w-16 min-h-[44px] sm:min-h-[36px] py-1 px-1 bg-[#FFFFFF] border-2 border-[#3B7A57] rounded-xl text-center font-mono text-sm sm:text-xs text-[#1F2F23] font-bold focus:outline-none focus:ring-2 focus:ring-[#3B7A57]/30 shadow-inner"
-                              />
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                onUpdateSlotPercentage(slotKey, Math.min(100, slot.percentage + 1))
-                              }
-                              className="min-h-[44px] sm:min-h-[36px] py-2 px-1 rounded-xl bg-[#EEF5F0] hover:bg-[#E2EDE5] active:bg-[#D5E5DA] text-[#245236] border border-[#CFE2D4] font-mono text-sm font-bold flex items-center justify-center transition-all active:scale-95 shadow-xs"
-                              title="Tăng 1%"
-                            >
-                              <Plus className="w-4 h-4 stroke-[2.5]" />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                onUpdateSlotPercentage(slotKey, Math.min(100, slot.percentage + 5))
-                              }
-                              className="min-h-[44px] sm:min-h-[36px] py-2 px-1 rounded-xl bg-[#FFF8EB] hover:bg-[#FDEFD2] active:bg-[#FAE3B8] text-[#8C6212] border border-[#F2DEB5] font-mono text-xs font-semibold flex items-center justify-center transition-all active:scale-95 shadow-xs"
-                              title="Tăng 5%"
-                            >
-                              +5%
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Finger-friendly Range Slider Track with generous vertical padding for mobile touch */}
-                        <div className="py-2 px-1">
-                          <input
-                            type="range"
-                            min={0}
-                            max={50}
-                            step={1}
-                            value={slot.percentage}
-                            onChange={(e) =>
-                              onUpdateSlotPercentage(slotKey, parseInt(e.target.value, 10))
-                            }
-                            style={{
-                              background: `linear-gradient(to right, ${tierGroup.sliderTrackHex} 0%, ${tierGroup.sliderTrackHex} ${sliderFillPct}%, #1e293b ${sliderFillPct}%, #1e293b 100%)`,
-                            }}
-                            className="pyramid-touch-slider w-full cursor-pointer"
-                          />
-                          <div className="flex justify-between text-[10px] font-mono text-slate-500 mt-2 px-0.5 select-none">
-                            <span>0%</span>
-                            <span>10%</span>
-                            <span>20%</span>
-                            <span>30%</span>
-                            <span>40%</span>
-                            <span>50%</span>
-                          </div>
-                        </div>
-
-                        {/* 3. Stacked Volume (mL), Final Product Concentration (%) & Drops Readout Cards on Mobile */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono pt-2 border-t border-slate-800/80">
-                          <div className="flex items-center justify-between sm:justify-start gap-2 bg-slate-900/90 px-3 py-2 rounded-xl border border-slate-800/90">
-                            <span className="flex items-center gap-1.5 text-slate-300">
-                              <Droplet className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                              <span>Tinh dầu nguyên chất:</span>
-                            </span>
-                            <strong className="text-cyan-300 text-sm">
-                              {calculated.volumeMl} mL (~{calculated.drops} giọt)
-                            </strong>
-                          </div>
-
-                          <div className="flex items-center justify-between sm:justify-end gap-2 bg-slate-900/90 px-3 py-2 rounded-xl border border-slate-800/90">
-                            <span className="text-slate-400">Nồng độ thành phẩm:</span>
-                            <strong className="text-amber-300 text-sm">
-                              {calculated.finalProductConcentrationPercent}%
-                            </strong>
-                          </div>
-                        </div>
+                      {/* Compact numeric badges */}
+                      <div className="flex items-center justify-between gap-2 text-xs font-mono pt-1 border-t border-black/5">
+                        <span className="flex items-center gap-1 text-[#15803D] font-bold">
+                          <Droplet className="w-3.5 h-3.5 text-[#16A34A]" />
+                          {calculated.volumeMl} mL · {calculated.drops} giọt
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full bg-[#FCE7F3] text-[#BE185D] font-bold">
+                          {calculated.finalProductConcentrationPercent}% thành phẩm
+                        </span>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
     </div>
   );

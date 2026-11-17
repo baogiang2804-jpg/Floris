@@ -46,6 +46,11 @@ import { AddCustomIngredientModal } from './components/AddCustomIngredientModal'
 import { ExperimentalFormulaPopupModal } from './components/ExperimentalFormulaPopupModal';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import {
+  SakuraPetalsBackdrop,
+  SakuraBranchIllustration,
+} from './components/SpringDecorations';
+import { SpringAccordion } from './components/SpringAccordion';
+import {
   SEASONAL_TEMPLATES,
   EXPERIMENTAL_BASELINE_FORMULA,
   PerfumeIngredient,
@@ -265,8 +270,18 @@ export default function App() {
   const [isInlineGuideExpanded, setIsInlineGuideExpanded] = useState(false);
   // Keep guide modal closed on initial open so the Group's Experimental Baseline Formula is shown first before any guide
   const [isGuideOpen, setIsGuideOpen] = useState<boolean>(false);
-  // Dedicated Pop-up for Group's Experimental Baseline Formula (Floris 10mL) — opens immediately on launch before the guide
-  const [isExperimentalPopupOpen, setIsExperimentalPopupOpen] = useState<boolean>(true);
+  // Dedicated Pop-up for Group's Experimental Baseline Formula (Floris 10mL) — skips if ?autostart=1
+  const [isExperimentalPopupOpen, setIsExperimentalPopupOpen] = useState<boolean>(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('autostart') === '1' || params.get('qr') === '1') return false;
+      }
+    } catch {
+      // ignore
+    }
+    return true;
+  });
 
   // Saved formulas state with localStorage persistence
   const [savedFormulas, setSavedFormulas] = useState<SavedFormula[]>(() => {
@@ -975,307 +990,357 @@ export default function App() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500/30 selection:text-amber-200">
-      {/* 1. Header with Sub-Webs Navigation, Voice Widget & User Guide */}
-      <Header
-        isValidTotal={formulaResults.isValidTotal}
-        totalPercentage={formulaResults.totalPercentage}
-        savedCount={savedFormulas.length}
-        activePage={activePage}
-        onChangePage={(page) => {
-          setActivePage(page);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-        onOpenSavedFormulas={() => setIsSavedModalOpen(true)}
-        onQuickSave={handleQuickSave}
-        onOpenPythonCode={() => setIsPythonModalOpen(true)}
-        onExportCsv={handleExportCsv}
-        onAutoBalance={handleAutoBalance}
-        onOpenGuide={() => setIsGuideOpen(true)}
-        onOpenVoiceWidget={() => setIsVoiceWidgetOpen(true)}
-        onOpenExperimentalPopup={() => setIsExperimentalPopupOpen(true)}
-      />
+    <div className="min-h-screen overflow-x-clip text-[#2B342D] flex flex-col font-sans relative selection:bg-[#FCE7F3] selection:text-[#BE185D]">
+      <SakuraPetalsBackdrop />
 
-      {/* Floating Global Quick Toast */}
-      {quickNotification && (
-        <div className="fixed top-16 right-4 sm:right-8 z-50 bg-slate-900 border border-slate-700 text-slate-100 px-4 py-2.5 rounded-lg shadow-lg flex items-center gap-2.5 text-xs font-medium">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-          <span>{quickNotification}</span>
-        </div>
-      )}
+      <div className="relative z-10 flex flex-col min-h-screen">
+        {/* 1. Spring Pastel Header */}
+        <Header
+          isValidTotal={formulaResults.isValidTotal}
+          totalPercentage={formulaResults.totalPercentage}
+          savedCount={savedFormulas.length}
+          activePage={activePage}
+          onChangePage={(page) => {
+            setActivePage(page);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          onOpenSavedFormulas={() => setIsSavedModalOpen(true)}
+          onQuickSave={handleQuickSave}
+          onOpenPythonCode={() => setIsPythonModalOpen(true)}
+          onExportCsv={handleExportCsv}
+          onAutoBalance={handleAutoBalance}
+          onOpenGuide={() => setIsGuideOpen(true)}
+          onOpenVoiceWidget={() => setIsVoiceWidgetOpen(true)}
+          onOpenExperimentalPopup={() => setIsExperimentalPopupOpen(true)}
+        />
 
-      {/* CSV Export Notification Toast */}
-      {csvExportToast && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
-          <div
-            className={`px-4 py-2.5 rounded-lg shadow-lg border flex items-center gap-2.5 text-xs font-medium transition-opacity duration-200 ${
-              csvExportToast.type === 'waiting'
-                ? 'bg-slate-900 text-amber-200 border-slate-700'
-                : 'bg-slate-900 text-emerald-200 border-emerald-500/40'
-            }`}
-          >
-            {csvExportToast.type === 'waiting' ? (
-              <>
-                <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
-                <span>{csvExportToast.message}</span>
-              </>
-            ) : (
-              <>
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span>{csvExportToast.message}</span>
-              </>
-            )}
+        {/* Floating Global Quick Toast */}
+        {quickNotification && (
+          <div className="fixed top-16 right-4 sm:right-8 z-50 bg-white border-2 border-[#BBF7D0] text-[#15803D] px-4 py-2.5 rounded-2xl shadow-lg flex items-center gap-2 text-xs font-bold">
+            <CheckCircle2 className="w-4 h-4 text-[#16A34A]" />
+            <span>{quickNotification}</span>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* 2. Clean Editorial Intro Header on Main Page */}
-      {activePage === 'main' && (
-        <section className="border-b border-slate-800/80 bg-slate-950 px-4 py-8 sm:px-8">
-          <div className="max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-            <div className="max-w-2xl space-y-2">
-              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-                <span>Báo cáo thực hành Hóa học</span>
-                <span aria-hidden="true">·</span>
-                <span>Chủ đề Mùa Xuân (EDP 20%)</span>
-                <span aria-hidden="true">·</span>
-                <span>Tổ 1 — Lớp 12A13 THPT Nguyễn Thị Minh Khai</span>
+        {/* CSV Export Notification Toast */}
+        {csvExportToast && (
+          <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+            <div
+              className={`px-4 py-2.5 rounded-2xl shadow-lg border-2 flex items-center gap-2 text-xs font-bold ${
+                csvExportToast.type === 'waiting'
+                  ? 'bg-[#FFFDF0] text-[#92400E] border-[#FDE68A]'
+                  : 'bg-[#ECFDF3] text-[#15803D] border-[#86EFAC]'
+              }`}
+            >
+              {csvExportToast.type === 'waiting' ? (
+                <Loader2 className="w-4 h-4 text-[#D97706] animate-spin" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4 text-[#16A34A]" />
+              )}
+              <span>{csvExportToast.message}</span>
+            </div>
+          </div>
+        )}
+
+        {/* 2. Minimal Visual Spring Hero Banner */}
+        {activePage === 'main' && (
+          <section className="px-3 sm:px-6 md:px-8 pt-4 sm:pt-6">
+            <div className="max-w-7xl mx-auto rounded-3xl bg-gradient-to-r from-[#FFF1F5] via-[#FFFDF2] to-[#ECFDF3] border-2 border-[#FBCFE8] p-5 sm:p-7 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-5 overflow-hidden relative">
+              <div className="space-y-2.5 max-w-xl relative z-10">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-3 py-1 rounded-full bg-white text-[#BE185D] text-xs font-bold border border-[#F9A8D4]">
+                    🌸 Mùa Xuân · 10 mL
+                  </span>
+                  <span className="px-3 py-1 rounded-full bg-[#DCFCE7] text-[#15803D] text-xs font-bold border border-[#86EFAC]">
+                    🌿 Tổ 1 · 12A13
+                  </span>
+                </div>
+
+                <h1 className="text-2xl sm:text-4xl font-bold text-[#2B342D] tracking-tight">
+                  Xưởng hương Floris
+                </h1>
+
+                {/* Visual Scent Notes Pill Strip instead of long paragraph */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs font-bold">
+                  <span className="px-2.5 py-1 rounded-full bg-[#FEF9C3] text-[#854D0E]">🌼 Hoa nhài</span>
+                  <span className="px-2.5 py-1 rounded-full bg-[#FFEDD5] text-[#9A3412]">🍑 Đào</span>
+                  <span className="px-2.5 py-1 rounded-full bg-white text-[#374151] border border-[#E5E7EB]">🤍 Xạ hương</span>
+                  <span className="px-2.5 py-1 rounded-full bg-[#FEF3C7] text-[#92400E]">🍦 Vanilla</span>
+                </div>
               </div>
 
-              <h1
-                className="text-3xl sm:text-4xl font-serif font-bold text-slate-100 tracking-tight"
-                style={{ textWrap: 'balance' }}
-              >
-                Dự án nước hoa thực nghiệm Floris &amp; góc thử nghiệm mùi hương
-              </h1>
-              <p className="text-slate-400 text-sm sm:text-base leading-relaxed">
-                Tổng hợp số liệu pha chế mẫu nước hoa thực nghiệm ban đầu của nhóm (10,00 mL), kết hợp công cụ điều chỉnh tỉ lệ 3 tầng hương và đối chiếu giả thuyết cải tiến cùng AI.
-              </p>
-            </div>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 relative z-10">
+                <SakuraBranchIllustration className="w-40 h-24 hidden sm:block animate-sakura-float shrink-0" />
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActivePage('experimental');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="px-4 py-2.5 rounded-2xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold transition-colors flex items-center gap-1.5 whitespace-nowrap shadow-xs"
+                  >
+                    <FlaskConical className="w-3.5 h-3.5" />
+                    <span>Phiếu thực nghiệm</span>
+                  </button>
 
-            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
+                  <button
+                    type="button"
+                    onClick={() => setIsExperimentalPopupOpen(true)}
+                    className="px-4 py-2.5 rounded-2xl bg-white hover:bg-[#FFF5F8] text-[#BE185D] border border-[#FBCFE8] text-xs font-bold transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                  >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    <span>Xem nhanh</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsVoiceWidgetOpen(true)}
+                    className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-[#EC4899] to-[#F472B6] hover:from-[#DB2777] hover:to-[#EC4899] text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 whitespace-nowrap active:scale-95"
+                  >
+                    <Mic className="w-3.5 h-3.5" />
+                    <span>Gemini Live</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* 3. Workspace Router */}
+        <main className="flex-1 max-w-7xl mx-auto w-full px-3 sm:px-6 md:px-8 pt-5 pb-32 md:pb-12 space-y-6 sm:space-y-8">
+          {activePage === 'main' && (
+            <>
+              <PresentationShowcaseHub
+                seasonKey={selectedSeason}
+                seasonLabel={SEASONAL_TEMPLATES[selectedSeason].title}
+                totalVolume={totalVolume}
+                concentrationName={concentrationName}
+                concentrationPercent={concentrationPercent}
+                pureFragranceMl={formulaResults.pureFragranceMl}
+                carrierAlcoholMl={formulaResults.carrierAlcoholMl}
+                slots={slots}
+                calculatedIngredients={formulaResults.calculatedIngredients}
+                tierTotals={formulaResults.tierTotals}
+                totalPercentage={formulaResults.totalPercentage}
+                isValidTotal={formulaResults.isValidTotal}
+                perfumeName={perfumeName}
+                isQrVisitorMode={isQrVisitorMode}
+                onRestoreExperimentalBaseline={handleRestoreExperimentalBaseline}
+                onUpdateSlotObservedNote={handleUpdateSlotObservedNote}
+                onApplyAdjustedFormula={handleApplyAIAdjustedFormula}
+                onSaveProposedToDrawer={handleSaveProposedFormulaToDrawer}
+                onOpenVoiceWidget={() => setIsVoiceWidgetOpen(true)}
+                onAutoBalance={handleAutoBalance}
+                onOpenExperimentalPopup={() => setIsExperimentalPopupOpen(true)}
+                onOpenExperimentalWeb={() => {
                   setActivePage('experimental');
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors flex items-center gap-2 whitespace-nowrap"
-              >
-                <FlaskConical className="w-3.5 h-3.5" />
-                <span>Mở trang Công thức thực nghiệm</span>
-              </button>
+              />
 
-              <button
-                type="button"
-                onClick={() => setIsExperimentalPopupOpen(true)}
-                className="px-3.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 text-xs font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap"
+              {/* Compact 5-Step Process tucked cleanly in an Accordion */}
+              <SpringAccordion
+                title="Quy trình báo cáo 5 bước & Ghi chú IFRA"
+                badge="5 bước"
+                icon={<BookOpen className="w-4 h-4 text-[#DB2777]" />}
+                tone="butter"
+                defaultOpen={isInlineGuideExpanded}
               >
-                <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Xem nhanh Pop-up</span>
-              </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                  {[
+                    { step: '01 · Mẫu gốc', desc: 'Giới thiệu 4 nốt hương Floris 10 mL (Nhài, Đào, Xạ hương, Vanilla).' },
+                    { step: '02 · Yêu cầu', desc: 'Chọn hoặc nói mong muốn tinh chỉnh mùi hương.' },
+                    { step: '03 · Giả thuyết', desc: 'AI cân chỉnh đủ 100% và giải thích độ bay hơi.' },
+                    { step: '04 · Đối chiếu', desc: 'So sánh thanh tỷ lệ & mL trước/sau điều chỉnh.' },
+                    { step: '05 · Kiểm chứng', desc: 'Ghi nhận xét Hóa học và xuất file CSV.' },
+                  ].map((s) => (
+                    <div key={s.step} className="p-3 rounded-2xl bg-white border border-[#FDE68A] space-y-1">
+                      <span className="font-bold text-[#92400E] block">{s.step}</span>
+                      <p className="text-[#4A4D48]">{s.desc}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsInlineGuideExpanded((p) => !p);
+                      setIsGuideOpen(true);
+                    }}
+                    className="px-3.5 py-1.5 rounded-2xl bg-[#FCE7F3] text-[#BE185D] font-bold text-xs"
+                  >
+                    Mở sổ tay đầy đủ
+                  </button>
+                </div>
+              </SpringAccordion>
 
-              <button
-                type="button"
-                onClick={() => setIsVoiceWidgetOpen(true)}
-                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#2D6344] to-[#3B7A57] hover:from-[#245237] hover:to-[#2D6344] text-white text-xs font-semibold shadow-xs transition-all flex items-center gap-2 whitespace-nowrap ring-2 ring-[#3B7A57]/20 group active:scale-95"
-                title="Mở trợ lý giọng nói Gemini Live để tương tác trực tiếp"
-              >
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-200"></span>
-                </span>
-                <Mic className="w-3.5 h-3.5 text-emerald-100 group-hover:scale-110 transition-transform" />
-                <span>Gemini Live (Nói để chỉnh)</span>
-              </button>
-            </div>
-          </div>
-        </section>
-      )}
+              {/* Step 1: Chọn Mùa */}
+              <SeasonalSelector
+                selectedSeason={selectedSeason}
+                onSelectSeason={handleSelectSeason}
+                onApplySeasonalTemplate={handleApplySeasonalTemplate}
+              />
 
-      {/* 3. Workspace Router */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-3 sm:px-6 md:px-8 pt-4 sm:pt-8 pb-32 md:pb-12 space-y-8 sm:space-y-10">
-        {activePage === 'main' && (
-          <>
-            {/* 1. CÔNG THỨC NƯỚC HOA THỰC NGHIỆM BAN ĐẦU CỦA NHÓM & TƯ VẤN CẢI TIẾN CÙNG AI */}
-            <PresentationShowcaseHub
-              seasonKey={selectedSeason}
-              seasonLabel={SEASONAL_TEMPLATES[selectedSeason].title}
+              {/* Step 2: Thể Tích & Nồng Độ */}
+              <VolumeAndConcentration
+                totalVolume={totalVolume}
+                onChangeVolume={setTotalVolume}
+                concentrationName={concentrationName}
+                concentrationPercent={concentrationPercent}
+                onChangeConcentration={(name, pct) => {
+                  setConcentrationName(name);
+                  setConcentrationPercent(pct);
+                }}
+                pureFragranceMl={formulaResults.pureFragranceMl}
+                carrierAlcoholMl={formulaResults.carrierAlcoholMl}
+              />
+
+              {/* Step 3: Thanh Trượt 3 Tầng */}
+              <OlfactoryPyramidSliders
+                slots={slots}
+                calculatedIngredients={formulaResults.calculatedIngredients}
+                totalPercentage={formulaResults.totalPercentage}
+                isValidTotal={formulaResults.isValidTotal}
+                difference={formulaResults.difference}
+                tierTotals={formulaResults.tierTotals}
+                totalVolume={totalVolume}
+                editHistory={editHistory}
+                canUndo={editHistory.length > 0}
+                onUndo={handleUndo}
+                onRestoreHistorySnapshot={handleRestoreHistorySnapshot}
+                onClearHistory={handleClearHistory}
+                customIngredients={customIngredients}
+                onOpenAddCustomIngredient={handleOpenAddCustomIngredient}
+                onUpdateSlotPercentage={handleUpdateSlotPercentage}
+                onUpdateSlotIngredient={handleUpdateSlotIngredient}
+                onUpdateSlotCustomName={handleUpdateSlotCustomName}
+                onAutoBalance={handleAutoBalance}
+                onResetDefault={handleResetDefault}
+              />
+
+              {/* Step 4: Hồ Sơ Mùi & Chai Đổ Màu */}
+              <ScentProfileView
+                calculatedIngredients={formulaResults.calculatedIngredients}
+                tierTotals={formulaResults.tierTotals}
+                seasonName={SEASONAL_TEMPLATES[selectedSeason].title}
+                concentrationName={concentrationName}
+                totalVolume={totalVolume}
+              />
+
+              {/* Visual Workspace Cards */}
+              <section className="spring-card p-5 sm:p-6 space-y-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="px-3 py-1 rounded-full bg-[#FCE7F3] text-[#BE185D] text-xs font-bold border border-[#FBCFE8]">
+                      Khám phá thêm
+                    </span>
+                    <h2 className="text-lg font-bold text-[#2B342D]">Công cụ chuyên sâu</h2>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsPythonModalOpen(true)}
+                    className="px-3 py-1.5 rounded-2xl bg-[#FFFDF0] hover:bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] text-xs font-bold flex items-center gap-1.5"
+                  >
+                    <FileCode className="w-3.5 h-3.5" />
+                    <span>Mã Python</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                  {[
+                    {
+                      page: 'experimental' as const,
+                      emoji: '🧪',
+                      tag: 'Mẫu A · B · C',
+                      title: 'Công thức thực nghiệm',
+                      tone: 'from-[#ECFDF3] to-white border-[#86EFAC] text-[#15803D]',
+                    },
+                    {
+                      page: 'csv' as const,
+                      emoji: '📊',
+                      tag: 'Nhập · Xuất',
+                      title: 'Bảng tính CSV',
+                      tone: 'from-[#FFFDF0] to-white border-[#FDE68A] text-[#92400E]',
+                    },
+                    {
+                      page: 'ai' as const,
+                      emoji: '✨',
+                      tag: 'IFRA · Radar',
+                      title: 'Góc tư vấn AI',
+                      tone: 'from-[#FFF1F5] to-white border-[#FBCFE8] text-[#BE185D]',
+                    },
+                    {
+                      page: 'python' as const,
+                      emoji: '🐍',
+                      tag: 'Streamlit App',
+                      title: 'App Python',
+                      tone: 'from-[#FFF5F5] to-white border-[#FECACA] text-[#B91C1C]',
+                    },
+                  ].map((card) => (
+                    <button
+                      key={card.page}
+                      type="button"
+                      onClick={() => {
+                        setActivePage(card.page);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className={`p-4 rounded-3xl bg-gradient-to-br border-2 text-left transition-all hover:scale-[1.01] flex flex-col justify-between gap-4 ${card.tone}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center text-xl shadow-xs">
+                          {card.emoji}
+                        </span>
+                        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-white/90 border border-black/5">
+                          {card.tag}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-bold text-[#2B342D]">{card.title}</h3>
+                        <ArrowRight className="w-4 h-4 shrink-0" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            </>
+          )}
+
+          {activePage === 'experimental' && (
+            <SubWebExperimentalFormula
               totalVolume={totalVolume}
               concentrationName={concentrationName}
               concentrationPercent={concentrationPercent}
               pureFragranceMl={formulaResults.pureFragranceMl}
               carrierAlcoholMl={formulaResults.carrierAlcoholMl}
-              slots={slots}
               calculatedIngredients={formulaResults.calculatedIngredients}
               tierTotals={formulaResults.tierTotals}
               totalPercentage={formulaResults.totalPercentage}
-              isValidTotal={formulaResults.isValidTotal}
               perfumeName={perfumeName}
-              isQrVisitorMode={isQrVisitorMode}
               onRestoreExperimentalBaseline={handleRestoreExperimentalBaseline}
               onUpdateSlotObservedNote={handleUpdateSlotObservedNote}
-              onApplyAdjustedFormula={handleApplyAIAdjustedFormula}
-              onSaveProposedToDrawer={handleSaveProposedFormulaToDrawer}
-              onOpenVoiceWidget={() => setIsVoiceWidgetOpen(true)}
-              onAutoBalance={handleAutoBalance}
+              onApplyVariantToStudio={(adjustedItems, proposedName, summaryNote) => {
+                handleApplyAIAdjustedFormula(adjustedItems, proposedName, summaryNote);
+              }}
               onOpenExperimentalPopup={() => setIsExperimentalPopupOpen(true)}
-              onOpenExperimentalWeb={() => {
-                setActivePage('experimental');
+              onOpenGuideModal={() => setIsGuideOpen(true)}
+              onBackToMainWeb={() => {
+                setActivePage('main');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              onGoToAIWeb={() => {
+                setActivePage('ai');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
             />
+          )}
 
-            {/* 2. SƠ ĐỒ TÓM TẮT QUY TRÌNH THUYẾT TRÌNH & LƯU Ý HÓA HỌC */}
-            <section className="rounded-xl bg-slate-900/60 border border-slate-800 overflow-hidden">
-              <div className="p-4 sm:p-5 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
-                    <span>Tài liệu tóm tắt cho buổi báo cáo</span>
-                    <span aria-hidden="true">·</span>
-                    <span>Chuẩn IFRA 51st (Category 4)</span>
-                  </div>
-                  <h2 className="text-lg sm:text-xl font-serif font-bold text-slate-100 mt-0.5">
-                    Quy trình trình bày 5 bước &amp; ghi chú Hóa học cần nhớ
-                  </h2>
-                </div>
-
-                <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setIsGuideOpen(true)}
-                    className="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium flex items-center gap-1.5 transition-colors whitespace-nowrap"
-                  >
-                    <BookOpen className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Mở sổ tay hướng dẫn</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsInlineGuideExpanded((prev) => !prev)}
-                    className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-medium flex items-center gap-1 transition-colors whitespace-nowrap"
-                  >
-                    <span>{isInlineGuideExpanded ? 'Thu gọn' : 'Xem chi tiết'}</span>
-                    {isInlineGuideExpanded ? (
-                      <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
-                    ) : (
-                      <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {isInlineGuideExpanded && (
-                <div className="p-4 sm:p-6 space-y-5">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-                    <div className="p-3.5 rounded-lg bg-slate-950/70 border border-slate-800/90 space-y-1.5">
-                      <span className="text-xs font-mono text-slate-400 block">
-                        01. Công thức gốc
-                      </span>
-                      <h3 className="text-xs font-semibold text-slate-100">
-                        Giới thiệu mẫu thực nghiệm
-                      </h3>
-                      <p className="text-xs text-slate-400 leading-relaxed">
-                        Trình bày 6 nguyên liệu của mẫu <em>Floris (10 mL)</em>: Lê, Bergamot, Hoa anh đào, Hoa nhài, Xạ hương trắng, Vanilla cùng 3 mẫu thử A, B, C.
-                      </p>
-                    </div>
-
-                    <div className="p-3.5 rounded-lg bg-slate-950/70 border border-slate-800/90 space-y-1.5">
-                      <span className="text-xs font-mono text-slate-400 block">
-                        02. Đặt yêu cầu
-                      </span>
-                      <h3 className="text-xs font-semibold text-slate-100">
-                        Nhận câu hỏi từ người xem
-                      </h3>
-                      <p className="text-xs text-slate-400 leading-relaxed">
-                        Chọn câu hỏi gợi ý (tươi mát hơn, rõ hương hoa, giảm độ nồng, thêm nốt gỗ...) hoặc nhập trực tiếp yêu cầu của người tham quan.
-                      </p>
-                    </div>
-
-                    <div className="p-3.5 rounded-lg bg-slate-950/70 border border-slate-800/90 space-y-1.5">
-                      <span className="text-xs font-mono text-slate-400 block">
-                        03. Giả thuyết AI
-                      </span>
-                      <h3 className="text-xs font-semibold text-slate-100">
-                        Kiểm tra tỉ lệ 100%
-                      </h3>
-                      <p className="text-xs text-slate-400 leading-relaxed">
-                        Hệ thống kiểm tra tổng tỉ lệ hợp hương bằng 100%, nêu lý do điều chỉnh dựa trên độ bay hơi, phân tử khối và liên kết hydro.
-                      </p>
-                    </div>
-
-                    <div className="p-3.5 rounded-lg bg-slate-950/70 border border-slate-800/90 space-y-1.5">
-                      <span className="text-xs font-mono text-slate-400 block">
-                        04. Đối chiếu số liệu
-                      </span>
-                      <h3 className="text-xs font-semibold text-slate-100">
-                        So sánh mẫu gốc &amp; đề xuất
-                      </h3>
-                      <p className="text-xs text-slate-400 leading-relaxed">
-                        Đặt cạnh nhau tỉ lệ hợp hương (%), nồng độ thành phẩm (%) và độ lệch (Δ%) để thấy rõ sự thay đổi ở từng tầng hương.
-                      </p>
-                    </div>
-
-                    <div className="p-3.5 rounded-lg bg-slate-950/70 border border-slate-800/90 space-y-1.5">
-                      <span className="text-xs font-mono text-slate-400 block">
-                        05. Phản biện &amp; lưu trữ
-                      </span>
-                      <h3 className="text-xs font-semibold text-slate-100">
-                        Nhận xét của nhóm
-                      </h3>
-                      <p className="text-xs text-slate-400 leading-relaxed">
-                        Ghi lại đánh giá của nhóm về tính hợp lý, cách pha mẫu đối chứng để kiểm chứng thực tế và xuất bảng báo cáo CSV.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="p-4 rounded-lg bg-slate-950/80 border border-slate-800/90 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                    <div>
-                      <strong className="text-slate-200 block mb-0.5">Phân biệt tỉ lệ và nồng độ</strong>
-                      <span className="text-slate-400 leading-relaxed">
-                        Tỉ lệ hợp hương luôn có tổng bằng 100%. Nồng độ thành phẩm (%) = [Tỉ lệ hợp hương × Nồng độ dòng nước hoa (EDP 20%)] / 100.
-                      </span>
-                    </div>
-
-                    <div>
-                      <strong className="text-slate-200 block mb-0.5">Giới hạn an toàn IFRA Cat.4</strong>
-                      <span className="text-slate-400 leading-relaxed">
-                        Tra cứu từ tài liệu kỹ thuật (ví dụ: Bergamot ép lạnh giới hạn 0,4% trên da do <em>Bergapten</em>, nên dùng loại Bergamot FCF đã tách furocoumarin).
-                      </span>
-                    </div>
-
-                    <div>
-                      <strong className="text-slate-200 block mb-0.5">Dự đoán mùi hương là giả thuyết</strong>
-                      <span className="text-slate-400 leading-relaxed">
-                        Mọi nhận định của AI chỉ đóng vai trò giả thuyết ban đầu, cần pha mẫu thực nghiệm và thử mù trên giấy thử (blotter) để kiểm chứng.
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </section>
-
-            {/* Khu vực tùy chỉnh chuyên sâu */}
-            <div className="pt-4 border-t border-slate-800/80">
-              <div className="mb-2">
-                <p className="text-xs text-slate-400">
-                  Bàn pha chế thủ công
-                </p>
-                <h2 className="text-xl sm:text-2xl font-serif font-bold text-slate-100">
-                  Tùy chỉnh công thức theo mùa, nồng độ &amp; thanh trượt 3 tầng hương
-                </h2>
-              </div>
-            </div>
-
-            {/* Step 1: Chọn Mùa */}
-            <SeasonalSelector
+          {activePage === 'csv' && (
+            <SubWebCsvStudio
+              perfumeName={perfumeName}
+              onChangePerfumeName={setPerfumeName}
               selectedSeason={selectedSeason}
               onSelectSeason={handleSelectSeason}
-              onApplySeasonalTemplate={handleApplySeasonalTemplate}
-            />
-
-            {/* Step 2: Nhập Thể Tích & Nồng Độ */}
-            <VolumeAndConcentration
               totalVolume={totalVolume}
               onChangeVolume={setTotalVolume}
               concentrationName={concentrationName}
@@ -1284,386 +1349,173 @@ export default function App() {
                 setConcentrationName(name);
                 setConcentrationPercent(pct);
               }}
-              pureFragranceMl={formulaResults.pureFragranceMl}
-              carrierAlcoholMl={formulaResults.carrierAlcoholMl}
-            />
-
-            {/* Step 3: Kéo Tỉ Lệ 3 Tầng / 6 Nguyên Liệu */}
-            <OlfactoryPyramidSliders
               slots={slots}
               calculatedIngredients={formulaResults.calculatedIngredients}
+              tierTotals={formulaResults.tierTotals}
               totalPercentage={formulaResults.totalPercentage}
               isValidTotal={formulaResults.isValidTotal}
-              difference={formulaResults.difference}
-              tierTotals={formulaResults.tierTotals}
-              totalVolume={totalVolume}
-              editHistory={editHistory}
-              canUndo={editHistory.length > 0}
-              onUndo={handleUndo}
-              onRestoreHistorySnapshot={handleRestoreHistorySnapshot}
-              onClearHistory={handleClearHistory}
               customIngredients={customIngredients}
-              onOpenAddCustomIngredient={handleOpenAddCustomIngredient}
               onUpdateSlotPercentage={handleUpdateSlotPercentage}
               onUpdateSlotIngredient={handleUpdateSlotIngredient}
               onUpdateSlotCustomName={handleUpdateSlotCustomName}
+              onOpenAddCustomIngredient={handleOpenAddCustomIngredient}
               onAutoBalance={handleAutoBalance}
-              onResetDefault={handleResetDefault}
+              onQuickSave={handleQuickSave}
+              onExportCsv={handleExportCsv}
+              onImportFormulaFromCsv={handleImportFormulaFromCsv}
+              onBackToMainWeb={() => {
+                setActivePage('main');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
             />
+          )}
 
-            {/* Step 4: Hiện "Hồ Sơ Mùi" */}
-            <ScentProfileView
-              calculatedIngredients={formulaResults.calculatedIngredients}
-              tierTotals={formulaResults.tierTotals}
-              seasonName={SEASONAL_TEMPLATES[selectedSeason].title}
-              concentrationName={concentrationName}
+          {activePage === 'ai' && (
+            <SubWebAIEvaluator
+              seasonKey={selectedSeason}
+              seasonLabel={SEASONAL_TEMPLATES[selectedSeason].title}
               totalVolume={totalVolume}
+              concentrationName={concentrationName}
+              concentrationPercent={concentrationPercent}
+              pureFragranceMl={formulaResults.pureFragranceMl}
+              carrierAlcoholMl={formulaResults.carrierAlcoholMl}
+              slots={slots}
+              ingredients={formulaResults.calculatedIngredients}
+              tierTotals={formulaResults.tierTotals}
+              totalPercentage={formulaResults.totalPercentage}
+              isValidTotal={formulaResults.isValidTotal}
+              perfumeName={perfumeName}
+              isQrVisitorMode={isQrVisitorMode}
+              onSavePerfumeName={(name) => setPerfumeName(name)}
+              onAutoBalance={handleAutoBalance}
+              onOpenVoiceWidget={() => setIsVoiceWidgetOpen(true)}
+              onRestoreExperimentalBaseline={handleRestoreExperimentalBaseline}
+              onUpdateSlotObservedNote={handleUpdateSlotObservedNote}
+              onApplyAdjustedFormula={handleApplyAIAdjustedFormula}
+              onSaveProposedToDrawer={handleSaveProposedFormulaToDrawer}
+              onBackToMainWeb={() => {
+                setActivePage('main');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
             />
+          )}
 
-            {/* Clean Navigation Cards to Dedicated Pages */}
-            <section className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div>
-                  <p className="text-xs text-slate-400">
-                    Các trang chức năng trong dự án
-                  </p>
-                  <h2 className="text-lg sm:text-xl font-serif font-bold text-slate-100">
-                    Chuyển nhanh sang các trang làm việc riêng
-                  </h2>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsPythonModalOpen(true)}
-                    className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-medium flex items-center gap-1.5"
-                  >
-                    <FileCode className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Mã nguồn Python</span>
-                  </button>
-                </div>
-              </div>
+          {activePage === 'python' && (
+            <SubWebPythonStreamlit
+              onBackToMainWeb={() => {
+                setActivePage('main');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              onSyncFormulaToWeb={handleSyncFromPython}
+            />
+          )}
+        </main>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div
-                  onClick={() => {
-                    setActivePage('experimental');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className="p-5 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-slate-700 cursor-pointer transition-colors group flex flex-col justify-between gap-4"
-                >
-                  <div className="space-y-1.5">
-                    <span className="text-xs text-emerald-400 font-medium block">
-                      01 · Phiếu thực hành gốc
-                    </span>
-                    <h3 className="text-base font-serif font-bold text-slate-100">
-                      Trang Công thức thực nghiệm (Floris 10 mL)
-                    </h3>
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      Xem đầy đủ báo cáo pha chế của nhóm: ý tưởng mùi hương, bảng tỉ lệ 10 mL, 3 mẫu thử A/B/C, dụng cụ, 7 bước tiến hành và quy tắc an toàn.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-300 group-hover:translate-x-0.5 transition-transform">
-                    <span>Mở trang công thức thực nghiệm</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </div>
-                </div>
-
-                <div
-                  onClick={() => {
-                    setActivePage('csv');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className="p-5 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-slate-700 cursor-pointer transition-colors group flex flex-col justify-between gap-4"
-                >
-                  <div className="space-y-1.5">
-                    <span className="text-xs text-slate-400 font-medium block">
-                      02 · Bảng số liệu
-                    </span>
-                    <h3 className="text-base font-serif font-bold text-slate-100">
-                      Trang Bảng tính &amp; Nhập/Xuất file CSV
-                    </h3>
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      Nhập nhanh tỉ lệ công thức theo dạng bảng, tải file .CSV từ máy tính lên hoặc xuất bảng định lượng sang Excel.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-slate-300 group-hover:translate-x-0.5 transition-transform">
-                    <span>Mở trang bảng tính CSV</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </div>
-                </div>
-
-                <div
-                  onClick={() => {
-                    setActivePage('ai');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className="p-5 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-slate-700 cursor-pointer transition-colors group flex flex-col justify-between gap-4"
-                >
-                  <div className="space-y-1.5">
-                    <span className="text-xs text-amber-400 font-medium block">
-                      03 · Phân tích chuyên sâu
-                    </span>
-                    <h3 className="text-base font-serif font-bold text-slate-100">
-                      Góc Tư vấn &amp; Thẩm định mùi hương cùng AI
-                    </h3>
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      Đánh giá độ hợp mùa, ước tính độ lưu hương, kiểm tra giới hạn IFRA và chia sẻ công thức qua mã QR.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-amber-300 group-hover:translate-x-0.5 transition-transform">
-                    <span>Mở góc tư vấn AI</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </div>
-                </div>
-
-                <div
-                  onClick={() => {
-                    setActivePage('python');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className="p-5 rounded-xl bg-slate-950/80 border border-[#FF4B4B]/30 hover:border-[#FF4B4B]/60 cursor-pointer transition-colors group flex flex-col justify-between gap-4"
-                >
-                  <div className="space-y-1.5">
-                    <span className="text-xs text-[#FF4B4B] font-medium block flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-[#FF4B4B] animate-pulse"></span>
-                      04 · Mô hình Python Streamlit
-                    </span>
-                    <h3 className="text-base font-serif font-bold text-slate-100">
-                      App Python Phối Trộn Nước Hoa
-                    </h3>
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      Tích hợp ứng dụng Streamlit (app1_8ba4d2ea.py), tương thích dữ liệu chuẩn lớp học, kéo thanh trượt an toàn, xuất CSV &amp; tải mã nguồn.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-[#FF4B4B] group-hover:translate-x-0.5 transition-transform">
-                    <span>Mở App Python Streamlit</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </div>
-                </div>
-              </div>
-            </section>
-          </>
-        )}
-
-        {activePage === 'experimental' && (
-          <SubWebExperimentalFormula
-            totalVolume={totalVolume}
-            concentrationName={concentrationName}
-            concentrationPercent={concentrationPercent}
-            pureFragranceMl={formulaResults.pureFragranceMl}
-            carrierAlcoholMl={formulaResults.carrierAlcoholMl}
-            calculatedIngredients={formulaResults.calculatedIngredients}
-            tierTotals={formulaResults.tierTotals}
-            totalPercentage={formulaResults.totalPercentage}
-            perfumeName={perfumeName}
-            onRestoreExperimentalBaseline={handleRestoreExperimentalBaseline}
-            onUpdateSlotObservedNote={handleUpdateSlotObservedNote}
-            onApplyVariantToStudio={(adjustedItems, proposedName, summaryNote) => {
-              handleApplyAIAdjustedFormula(adjustedItems, proposedName, summaryNote);
-            }}
-            onOpenExperimentalPopup={() => setIsExperimentalPopupOpen(true)}
-            onOpenGuideModal={() => setIsGuideOpen(true)}
-            onBackToMainWeb={() => {
-              setActivePage('main');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            onGoToAIWeb={() => {
-              setActivePage('ai');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-          />
-        )}
-
-        {activePage === 'csv' && (
-          <SubWebCsvStudio
-            perfumeName={perfumeName}
-            onChangePerfumeName={setPerfumeName}
-            selectedSeason={selectedSeason}
-            onSelectSeason={handleSelectSeason}
-            totalVolume={totalVolume}
-            onChangeVolume={setTotalVolume}
-            concentrationName={concentrationName}
-            concentrationPercent={concentrationPercent}
-            onChangeConcentration={(name, pct) => {
-              setConcentrationName(name);
-              setConcentrationPercent(pct);
-            }}
-            slots={slots}
-            calculatedIngredients={formulaResults.calculatedIngredients}
-            tierTotals={formulaResults.tierTotals}
-            totalPercentage={formulaResults.totalPercentage}
-            isValidTotal={formulaResults.isValidTotal}
-            customIngredients={customIngredients}
-            onUpdateSlotPercentage={handleUpdateSlotPercentage}
-            onUpdateSlotIngredient={handleUpdateSlotIngredient}
-            onUpdateSlotCustomName={handleUpdateSlotCustomName}
-            onOpenAddCustomIngredient={handleOpenAddCustomIngredient}
-            onAutoBalance={handleAutoBalance}
-            onQuickSave={handleQuickSave}
-            onExportCsv={handleExportCsv}
-            onImportFormulaFromCsv={handleImportFormulaFromCsv}
-            onBackToMainWeb={() => {
-              setActivePage('main');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-          />
-        )}
-
-        {activePage === 'ai' && (
-          <SubWebAIEvaluator
-            seasonKey={selectedSeason}
-            seasonLabel={SEASONAL_TEMPLATES[selectedSeason].title}
-            totalVolume={totalVolume}
-            concentrationName={concentrationName}
-            concentrationPercent={concentrationPercent}
-            pureFragranceMl={formulaResults.pureFragranceMl}
-            carrierAlcoholMl={formulaResults.carrierAlcoholMl}
-            slots={slots}
-            ingredients={formulaResults.calculatedIngredients}
-            tierTotals={formulaResults.tierTotals}
-            totalPercentage={formulaResults.totalPercentage}
-            isValidTotal={formulaResults.isValidTotal}
-            perfumeName={perfumeName}
-            isQrVisitorMode={isQrVisitorMode}
-            onSavePerfumeName={(name) => setPerfumeName(name)}
-            onAutoBalance={handleAutoBalance}
-            onOpenVoiceWidget={() => setIsVoiceWidgetOpen(true)}
-            onRestoreExperimentalBaseline={handleRestoreExperimentalBaseline}
-            onUpdateSlotObservedNote={handleUpdateSlotObservedNote}
-            onApplyAdjustedFormula={handleApplyAIAdjustedFormula}
-            onSaveProposedToDrawer={handleSaveProposedFormulaToDrawer}
-            onBackToMainWeb={() => {
-              setActivePage('main');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-          />
-        )}
-
-        {activePage === 'python' && (
-          <SubWebPythonStreamlit
-            onBackToMainWeb={() => {
-              setActivePage('main');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            onSyncFormulaToWeb={handleSyncFromPython}
-          />
-        )}
-      </main>
-
-      {/* Quiet, Subtle Bottom Bar for Quick Save / Compare / Undo (Desktop & Tablet) */}
-      <aside
-        aria-label="Thanh công cụ nhanh"
-        className={`hidden md:block sticky bottom-4 z-20 mx-auto px-4 w-full transition-all duration-200 ${
-          isBottomBarCollapsed ? 'max-w-xs' : 'max-w-xl'
-        }`}
-      >
-        <div className="bg-slate-900/95 border border-slate-800 rounded-xl px-3.5 py-2 shadow-lg backdrop-blur-md flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-xs font-mono">
-            <span className="text-slate-400">
-              Tổng tỉ lệ:{' '}
-              <strong className={formulaResults.isValidTotal ? 'text-emerald-400' : 'text-amber-400'}>
+        {/* Spring Pastel Sticky Quick Toolbar (Desktop bottom-right capsule) */}
+        <aside
+          aria-label="Thanh công cụ nhanh"
+          className="hidden md:flex justify-end sticky bottom-4 z-20 max-w-7xl mx-auto px-6 w-full pointer-events-none"
+        >
+          <div className="pointer-events-auto bg-white/95 border-2 border-[#FBCFE8] rounded-3xl px-4 py-2 shadow-lg backdrop-blur-md flex items-center justify-between gap-3">
+            <span className="text-xs font-mono font-bold text-[#5C6B5F]">
+              Tổng:{' '}
+              <strong className={formulaResults.isValidTotal ? 'text-[#15803D]' : 'text-[#D97706]'}>
                 {formulaResults.totalPercentage}%
               </strong>
             </span>
-          </div>
 
-          {isBottomBarCollapsed ? (
-            <div className="flex items-center gap-1.5">
+            {isBottomBarCollapsed ? (
               <button
                 onClick={() => setIsBottomBarCollapsed(false)}
                 type="button"
-                className="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1 text-xs"
+                className="px-3 py-1 rounded-2xl bg-[#FCE7F3] text-[#BE185D] font-bold flex items-center gap-1 text-xs"
               >
-                <span>Mở thanh công cụ</span>
+                <span>Mở công cụ</span>
                 <ChevronUp className="w-3.5 h-3.5" />
               </button>
-            </div>
-          ) : (
-            <div className="flex items-center flex-wrap gap-1.5">
-              {editHistory.length > 0 && (
+            ) : (
+              <div className="flex items-center flex-wrap gap-1.5">
+                {editHistory.length > 0 && (
+                  <button
+                    onClick={handleUndo}
+                    type="button"
+                    className="text-xs px-2.5 py-1 rounded-2xl bg-[#FFFDF0] hover:bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] font-bold flex items-center gap-1"
+                  >
+                    <Undo2 className="w-3.5 h-3.5" />
+                    <span>Hoàn tác ({editHistory.length})</span>
+                  </button>
+                )}
+
+                {!formulaResults.isValidTotal && (
+                  <button
+                    onClick={handleAutoBalance}
+                    type="button"
+                    className="text-xs px-2.5 py-1 rounded-2xl bg-[#F59E0B] text-white font-bold"
+                  >
+                    Cân 100%
+                  </button>
+                )}
+
                 <button
-                  onClick={handleUndo}
+                  onClick={handleQuickSave}
                   type="button"
-                  className="text-xs px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors flex items-center gap-1"
-                  title="Hoàn tác bước vừa chỉnh (Ctrl + Z)"
+                  className="text-xs px-3 py-1 rounded-2xl bg-[#ECFDF3] hover:bg-[#DCFCE7] text-[#15803D] border border-[#BBF7D0] font-bold flex items-center gap-1"
                 >
-                  <Undo2 className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Hoàn tác ({editHistory.length})</span>
+                  <Bookmark className="w-3.5 h-3.5" />
+                  <span>Lưu</span>
                 </button>
-              )}
 
-              {!formulaResults.isValidTotal && (
                 <button
-                  onClick={handleAutoBalance}
+                  onClick={() => setIsSavedModalOpen(true)}
                   type="button"
-                  className="text-xs px-2.5 py-1 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 transition-colors font-medium"
+                  className="text-xs px-3 py-1 rounded-2xl bg-[#FCE7F3] hover:bg-[#FBCFE8] text-[#BE185D] border border-[#F9A8D4] font-bold flex items-center gap-1"
                 >
-                  Cân bằng 100%
+                  <GitCompare className="w-3.5 h-3.5" />
+                  <span>So sánh ({savedFormulas.length})</span>
                 </button>
-              )}
 
-              <button
-                onClick={handleQuickSave}
-                type="button"
-                className="text-xs px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors flex items-center gap-1.5"
-              >
-                <Bookmark className="w-3.5 h-3.5 text-amber-400" />
-                <span>Lưu bản này</span>
-              </button>
+                <button
+                  onClick={() => setIsBottomBarCollapsed(true)}
+                  type="button"
+                  className="p-1.5 rounded-full bg-[#FFF5F8] text-[#BE185D]"
+                  title="Thu gọn"
+                >
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
+        </aside>
 
-              <button
-                onClick={() => setIsSavedModalOpen(true)}
-                type="button"
-                className="text-xs px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors flex items-center gap-1.5"
-              >
-                <GitCompare className="w-3.5 h-3.5 text-slate-400" />
-                <span>So sánh ({savedFormulas.length})</span>
-              </button>
+        {/* Spring Pastel Footer */}
+        <footer className="border-t border-[#F5DCE4] bg-white/80 py-5 px-4 text-center text-xs text-[#5C6B5F] mb-16 md:mb-0">
+          <p className="font-bold text-[#2B342D]">
+            🌸 Floris — Dự án Hóa học Mùa Xuân · Tổ 1, lớp 12A13 THPT Nguyễn Thị Minh Khai
+          </p>
+        </footer>
 
-              <button
-                onClick={() => setIsBottomBarCollapsed(true)}
-                type="button"
-                className="p-1 rounded-md bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 transition-colors"
-                title="Thu gọn"
-              >
-                <ChevronDown className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
-        </div>
-      </aside>
+        {/* Mobile Floating Action Button (FAB) */}
+        <button
+          type="button"
+          onClick={() => setIsVoiceWidgetOpen(true)}
+          className="fixed right-3.5 bottom-[74px] z-40 md:hidden w-11 h-11 rounded-full bg-gradient-to-tr from-[#EC4899] to-[#F472B6] text-white shadow-lg flex items-center justify-center ring-4 ring-[#FCE7F3] active:scale-95"
+          title="Gemini Live"
+          aria-label="Mở trợ lý giọng nói Gemini Live"
+        >
+          <Mic className="w-5 h-5 text-white" />
+        </button>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-800/80 bg-slate-950 py-6 px-4 text-center text-xs text-slate-400 mb-14 md:mb-0">
-        <p className="font-medium text-slate-300">
-          Dự án thực hành Hóa học — Nước hoa Floris · Tổ 1, lớp 12A13 THPT Nguyễn Thị Minh Khai
-        </p>
-      </footer>
-
-      {/* Mobile Floating Action Button (FAB) for Gemini Live Voice */}
-      <button
-        type="button"
-        onClick={() => setIsVoiceWidgetOpen(true)}
-        className="fixed right-4 bottom-[72px] z-40 md:hidden w-14 h-14 rounded-full bg-gradient-to-tr from-[#2D6344] via-[#3B7A57] to-[#10B981] text-white shadow-xl flex items-center justify-center ring-4 ring-[#3B7A57]/20 active:scale-95 group transition-transform"
-        title="Mở trợ lý giọng nói Gemini Live"
-        aria-label="Mở trợ lý giọng nói Gemini Live"
-      >
-        <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#10B981] border-2 border-[#FAF8F5] animate-ping" />
-        <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#10B981] border-2 border-[#FAF8F5]" />
-        <Mic className="w-6 h-6 text-white group-hover:scale-110 transition-transform" />
-      </button>
-
-      {/* Native-style Mobile Bottom Navigation Bar */}
-      <MobileBottomNav
-        activePage={activePage}
-        onChangePage={(page) => {
-          setActivePage(page);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-        onOpenExperimentalPopup={() => setIsExperimentalPopupOpen(true)}
-        onOpenSavedFormulas={() => setIsSavedModalOpen(true)}
-        savedCount={savedFormulas.length}
-      />
+        <MobileBottomNav
+          activePage={activePage}
+          onChangePage={(page) => {
+            setActivePage(page);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          onOpenExperimentalPopup={() => setIsExperimentalPopupOpen(true)}
+          onOpenSavedFormulas={() => setIsSavedModalOpen(true)}
+          savedCount={savedFormulas.length}
+        />
+      </div>
 
       {/* Modal 1: Saved Formulas & Comparison Drawer */}
       <SavedFormulasModal

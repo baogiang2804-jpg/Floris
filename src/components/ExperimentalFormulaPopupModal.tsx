@@ -10,12 +10,15 @@ import {
   BookOpen,
   Scale,
   Heart,
-  Users,
-  Layers,
   FlaskConical,
+  Droplets,
+  ShieldCheck,
 } from 'lucide-react';
 import { GROUP_LAB_REPORT_DATA, FLORIS_IMAGES } from '../data/perfumeData';
-import { FormulaSlot, downloadCsvFile } from '../utils/perfumeCalculations';
+import { CalculatedIngredient, FormulaSlot, downloadCsvFile } from '../utils/perfumeCalculations';
+import { FlorisSpringEmblem, ScentFamilyVisualBadge } from './SpringDecorations';
+import { SpringPerfumeBottleSVG } from './SpringPerfumeBottleSVG';
+import { SpringAccordion } from './SpringAccordion';
 
 interface ExperimentalFormulaPopupModalProps {
   isOpen: boolean;
@@ -29,19 +32,74 @@ interface ExperimentalFormulaPopupModalProps {
   onOpenExperimentalWeb?: () => void;
 }
 
-type PopupSectionTab =
-  | 'all'
-  | 'concept'
-  | 'story'
-  | 'reasons'
-  | 'formula'
-  | 'solvent'
-  | 'variants'
-  | 'tools'
-  | 'procedure'
-  | 'comparison'
-  | 'safety'
-  | 'references';
+type PopupSectionTab = 'overview' | 'variants' | 'lab' | 'safety';
+
+const LAB_FORMULA_BOTTLE_ITEMS: CalculatedIngredient[] = [
+  {
+    id: 'top_jasmine',
+    slotKey: 'top1',
+    tier: 'top',
+    tierLabel: 'Hương đầu',
+    name: 'Hoa nhài',
+    scientificName: 'Jasminum sambac',
+    scentFamily: 'Hoa cỏ',
+    color: '#FEF08A',
+    percentage: 40,
+    volumeMl: 0.25,
+    drops: 5,
+    finalProductConcentrationPercent: 2.5,
+    ifraMaxPercent: 5,
+    isExceedingIfra: false,
+  },
+  {
+    id: 'heart_peach',
+    slotKey: 'heart1',
+    tier: 'heart',
+    tierLabel: 'Hương giữa',
+    name: 'Đào',
+    scientificName: 'Prunus persica',
+    scentFamily: 'Trái cây',
+    color: '#FDBA74',
+    percentage: 30,
+    volumeMl: 0.2,
+    drops: 4,
+    finalProductConcentrationPercent: 2.0,
+    ifraMaxPercent: 10,
+    isExceedingIfra: false,
+  },
+  {
+    id: 'base_musk',
+    slotKey: 'base1',
+    tier: 'base',
+    tierLabel: 'Hương cuối',
+    name: 'Xạ hương trắng',
+    scientificName: 'Galaxolide / White Musk',
+    scentFamily: 'Xạ hương',
+    color: '#E2E8F0',
+    percentage: 15,
+    volumeMl: 0.3,
+    drops: 6,
+    finalProductConcentrationPercent: 3.0,
+    ifraMaxPercent: 15,
+    isExceedingIfra: false,
+  },
+  {
+    id: 'base_vanilla',
+    slotKey: 'base2',
+    tier: 'base',
+    tierLabel: 'Hương cuối',
+    name: 'Vanilla',
+    scientificName: 'Vanillin',
+    scentFamily: 'Ngọt dịu',
+    color: '#FDE68A',
+    percentage: 15,
+    volumeMl: 0.25,
+    drops: 5,
+    finalProductConcentrationPercent: 2.5,
+    ifraMaxPercent: 15,
+    isExceedingIfra: false,
+  },
+];
 
 export const ExperimentalFormulaPopupModal: React.FC<ExperimentalFormulaPopupModalProps> = ({
   isOpen,
@@ -49,17 +107,11 @@ export const ExperimentalFormulaPopupModal: React.FC<ExperimentalFormulaPopupMod
   onApplyVariantToStudio,
   onOpenExperimentalWeb,
 }) => {
-  const [activeTab, setActiveTab] = useState<PopupSectionTab>('all');
-
-  const [selectedConceptId, setSelectedConceptId] = useState<string>('concept_main');
-  const [selectedFormulaRowName, setSelectedFormulaRowName] = useState<string>('Hoa nhài 🌼');
+  const [activeTab, setActiveTab] = useState<PopupSectionTab>('overview');
   const [selectedVariantId, setSelectedVariantId] = useState<string>('sample_a_original');
-  const [selectedToolIdx, setSelectedToolIdx] = useState<number | null>(0);
-  const [selectedStepIdx, setSelectedStepIdx] = useState<number | null>(0);
-  const [selectedSafetyKey, setSelectedSafetyKey] = useState<string | null>('rule_0');
-
   const [copiedText, setCopiedText] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
 
   if (!isOpen) return null;
 
@@ -118,7 +170,7 @@ export const ExperimentalFormulaPopupModal: React.FC<ExperimentalFormulaPopupMod
     }
 
     if (closeModalAfter) {
-      setTimeout(() => onClose(), 300);
+      setTimeout(() => onClose(), 250);
     }
   };
 
@@ -149,92 +201,71 @@ export const ExperimentalFormulaPopupModal: React.FC<ExperimentalFormulaPopupMod
       '"Mẫu C - Dịu/Ngọt hơn",4% (8 giọt),4% (8 giọt),6% (12 giọt),6% (12 giọt),20% (2,00 mL = 40 giọt),8,00 mL (160 giọt)',
     ];
     downloadCsvFile(lines.join('\n'), 'cong_thuc_thuc_nghiem_floris_10ml.csv');
-    showToast('Đã tải file CSV công thức thực nghiệm.');
+    showToast('Đã tải CSV thực nghiệm.');
   };
 
   const handleCopyFullLabSheet = async () => {
     const rawText = `THỰC HÀNH LÀM NƯỚC HOA — FLORIS
 Chủ đề: Mùa Xuân
 Slogan: Chạm hương xuân, lưu nét dịu dàng
-Ý TƯỞNG
-- Tên sản phẩm: Floris
-- Định hướng cảm xúc: Tươi mới, nhẹ nhàng và trong trẻo 🫧
 - Hương đầu: Hoa nhài 🌼
 - Hương giữa: Đào 🍑
 - Hương cuối: Xạ hương trắng 🤍 + Vanilla 🍦
 
-CÔNG THỨC CHUẨN (10,00 mL) (Quy chuẩn: 1 giọt = 0,05 mL):
-- Hoa nhài 🌼: 40% cốt hương | 2,5% thành phẩm | 0,25 mL | 5 giọt
-- Đào 🍑: 30% cốt hương | 2,0% thành phẩm | 0,20 mL | 4 giọt
-- Xạ hương trắng 🤍: 15% cốt hương | 3,0% thành phẩm | 0,30 mL | 6 giọt
-- Vanilla 🍦: 15% cốt hương | 2,5% thành phẩm | 0,25 mL | 5 giọt
-- Tổng hỗn hợp cốt hương: 100% | 10% | 1,00 mL | 20 giọt
-- Dung môi nước hoa (Ethanol 90% 8,00 mL [160 giọt] + Nước cất 1,00 mL [20 giọt]): 90% | 9,00 mL | 180 giọt
-- Tổng thành phẩm: 100% | 10,00 mL | 200 giọt
-
-KHẢO SÁT ĐỘ TAN & DUNG MÔI:
-- Cố định: 1,00 mL tinh dầu (20 giọt) + 8,00 mL ethanol 90% (160 giọt) + nước cất thêm từng giọt.
-- Giới hạn không bị vẩn đục: 19–20 giọt nước cất (~1,00 mL).
-- Tỉ lệ dung môi chuẩn: 80% Ethanol 90% + 10% Nước cất + 10% Tinh dầu.
-
-TỈ LỆ HƯƠNG LIỆU 3 MẪU:
-• Mẫu A - Gốc (10% cốt hương = 20 giọt): Nhài 1% (2 giọt), Đào 2% (4 giọt), Xạ hương trắng 2,5% (5 giọt), Vanilla 4,5% (9 giọt) + Dung môi 9,00 mL (180 giọt)
-• Mẫu B - Tươi hơn (20% cốt hương = 40 giọt): Nhài 6% (12 giọt), Đào 4% (8 giọt), Xạ hương trắng 5% (10 giọt), Vanilla 5% (10 giọt) + Dung môi 8,00 mL (160 giọt)
-• Mẫu C - Dịu/Ngọt hơn (20% cốt hương = 40 giọt): Nhài 4% (8 giọt), Đào 4% (8 giọt), Xạ hương trắng 6% (12 giọt), Vanilla 6% (12 giọt) + Dung môi 8,00 mL (160 giọt)`;
+CÔNG THỨC CHUẨN (10,00 mL) (1 giọt = 0,05 mL):
+- Hoa nhài: 40% cốt | 0,25 mL | 5 giọt
+- Đào: 30% cốt | 0,20 mL | 4 giọt
+- Xạ hương trắng: 15% cốt | 0,30 mL | 6 giọt
+- Vanilla: 15% cốt | 0,25 mL | 5 giọt
+- Dung môi: 9,00 mL (Ethanol 90% 8,00 mL + Nước cất 1,00 mL)`;
 
     try {
       await navigator.clipboard.writeText(rawText);
       setCopiedText(true);
-      showToast('Đã sao chép nội dung phiếu thực hành.');
+      showToast('Đã sao chép công thức.');
       setTimeout(() => setCopiedText(false), 3000);
     } catch {
       // ignore
     }
   };
 
-  const activeConceptDetail =
-    GROUP_LAB_REPORT_DATA.conceptAndPyramidDetails.find((c) => c.id === selectedConceptId) ||
-    GROUP_LAB_REPORT_DATA.conceptAndPyramidDetails[0];
-
-  const activeFormulaRowDetail =
-    GROUP_LAB_REPORT_DATA.formulaRowDetails[selectedFormulaRowName] ||
-    GROUP_LAB_REPORT_DATA.formulaRowDetails['Hoa nhài 🌼'];
-
   const activeVariantDetail =
     GROUP_LAB_REPORT_DATA.variantDetails[selectedVariantId] ||
     GROUP_LAB_REPORT_DATA.variantDetails['sample_a_original'];
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#2D3A2F]/60 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
-      <div className="bg-[#FAF8F5] border-t sm:border border-[#E5DFD5] rounded-t-3xl sm:rounded-2xl max-w-6xl w-full overflow-hidden shadow-2xl max-h-[94vh] sm:max-h-[92vh] flex flex-col">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Phiếu thực hành nước hoa Floris"
+      className="fixed inset-0 z-50 bg-[#2B342D]/45 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
+    >
+      <div className="bg-[#FFFDF8] border-t sm:border-2 border-[#FBCFE8] rounded-t-3xl sm:rounded-3xl max-w-5xl w-full overflow-hidden shadow-2xl max-h-[94vh] sm:max-h-[90vh] flex flex-col text-[#2B342D]">
         {/* Mobile Drag Handle */}
-        <div className="w-12 h-1.5 rounded-full bg-[#D8D1C5] mx-auto mt-2.5 sm:hidden" />
+        <div className="w-12 h-1.5 rounded-full bg-[#F9A8D4] mx-auto mt-2.5 sm:hidden" />
 
-        {/* TOP HEADER */}
-        <div className="relative bg-[#FFFFFF] p-4 sm:p-5 border-b border-[#E8E1D5]">
+        {/* TOP HEADER (1 Short Title + 1-3 Word Pill) */}
+        <div className="relative bg-gradient-to-r from-[#FFF1F5] via-[#FFFDF5] to-[#ECFDF3] p-4 sm:p-5 border-b border-[#F5DCE4]">
           <button
+            type="button"
             onClick={onClose}
-            className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-[#FAF8F5] hover:bg-[#F2ECE1] flex items-center justify-center text-[#5A6A5E] hover:text-[#1F2F23] transition-colors border border-[#E3DBD0]"
-            title="Đóng cửa sổ"
+            aria-label="Đóng phiếu thực hành"
+            className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white hover:bg-[#FCE7F3] flex items-center justify-center text-[#5C6B5F] hover:text-[#BE185D] transition-colors border border-[#F3D5E0]"
           >
             <X className="w-4 h-4" />
           </button>
 
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pr-10">
-            <div className="space-y-1">
-              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-                <span className="text-emerald-400 font-medium">Phiếu thực hành nước hoa</span>
-                <span aria-hidden="true">·</span>
-                <span>Chủ đề: {GROUP_LAB_REPORT_DATA.topic}</span>
-                <span aria-hidden="true">·</span>
-                <span>Sản phẩm: {GROUP_LAB_REPORT_DATA.productName}</span>
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 pr-11">
+            <div className="flex items-center gap-3">
+              <FlorisSpringEmblem className="w-12 h-12 shrink-0" />
+              <div>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white text-[#BE185D] border border-[#FBCFE8] text-[11px] font-bold">
+                  🌸 Mùa Xuân · 10 mL
+                </span>
+                <h2 className="text-lg sm:text-2xl font-bold text-[#2B342D] mt-1">
+                  Phiếu Thực Hành Floris
+                </h2>
               </div>
-              <h2 className="text-xl sm:text-2xl font-serif font-bold text-slate-100">
-                Công thức nước hoa thực nghiệm ban đầu (10,00 mL)
-              </h2>
-              <p className="text-xs text-slate-400">
-                Định hướng cảm xúc: <strong className="text-slate-200">{GROUP_LAB_REPORT_DATA.emotionalDirection}</strong> · 2,00 mL hỗn hợp hương + 8,00 mL Ethanol 95%.
-              </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -245,27 +276,27 @@ TỈ LỆ HƯƠNG LIỆU 3 MẪU:
                     onClose();
                     onOpenExperimentalWeb();
                   }}
-                  className="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs flex items-center gap-1.5 transition-colors whitespace-nowrap"
+                  className="px-3.5 py-2 rounded-2xl bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-xs flex items-center gap-1.5 shadow-sm whitespace-nowrap"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                  <span>Chuyển sang Web riêng</span>
+                  <span>Mở trang riêng</span>
                 </button>
               )}
 
               <button
                 type="button"
                 onClick={handleCopyFullLabSheet}
-                className="px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 text-xs font-medium flex items-center gap-1.5 transition-colors whitespace-nowrap"
+                className="px-3 py-2 rounded-2xl bg-white hover:bg-[#FFF5F8] text-[#2B342D] border border-[#F3D5E0] text-xs font-bold flex items-center gap-1.5 whitespace-nowrap"
               >
                 {copiedText ? (
                   <>
-                    <Check className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="text-emerald-300">Đã sao chép</span>
+                    <Check className="w-3.5 h-3.5 text-[#16A34A]" />
+                    <span className="text-[#15803D]">Đã chép</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Sao chép phiếu</span>
+                    <Copy className="w-3.5 h-3.5 text-[#EC4899]" />
+                    <span>Sao chép</span>
                   </>
                 )}
               </button>
@@ -273,38 +304,30 @@ TỈ LỆ HƯƠNG LIỆU 3 MẪU:
               <button
                 type="button"
                 onClick={handleExportLabReportCsv}
-                className="px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 text-xs font-medium flex items-center gap-1.5 transition-colors whitespace-nowrap"
+                className="px-3 py-2 rounded-2xl bg-[#FEF9C3] hover:bg-[#FEF08A] text-[#854D0E] border border-[#FDE047] text-xs font-bold flex items-center gap-1.5 whitespace-nowrap"
               >
-                <Download className="w-3.5 h-3.5 text-slate-400" />
-                <span>Tải CSV (10 mL)</span>
+                <Download className="w-3.5 h-3.5" />
+                <span>CSV 10 mL</span>
               </button>
             </div>
           </div>
 
-          {/* Section Filter Tabs */}
-          <div className="flex flex-wrap items-center gap-1.5 mt-4 pt-3 border-t border-slate-800">
+          {/* 4 Visual Section Pills */}
+          <div className="flex items-center gap-1.5 mt-4 pt-3 border-t border-[#F5DCE4]/70 overflow-x-auto no-scrollbar">
             {[
-              { id: 'all', label: 'Tất cả mục' },
-              { id: 'concept', label: '1. Ý tưởng & tầng hương' },
-              { id: 'story', label: '2. Câu chuyện & người dùng' },
-              { id: 'reasons', label: '3. Phân tầng & lí do chọn' },
-              { id: 'formula', label: '4. Bảng công thức 10 mL' },
-              { id: 'solvent', label: '5. Độ tan & Dung môi' },
-              { id: 'variants', label: '6. Ba mẫu thử (A, B, C)' },
-              { id: 'tools', label: '7. Dụng cụ & hóa chất' },
-              { id: 'procedure', label: '8. Quy trình 9 bước' },
-              { id: 'comparison', label: '9. So sánh học đường & công nghiệp' },
-              { id: 'safety', label: '10. An toàn & bảo quản' },
-              { id: 'references', label: '11. Nguồn tham khảo' },
+              { id: 'overview', label: '🌸 Tổng quan 10 mL' },
+              { id: 'variants', label: '🧪 3 Mẫu A · B · C' },
+              { id: 'lab', label: '⚗️ Độ tan & 9 Bước' },
+              { id: 'safety', label: '🛡️ An toàn & Nguồn' },
             ].map((t) => (
               <button
                 key={t.id}
                 type="button"
                 onClick={() => setActiveTab(t.id as PopupSectionTab)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap shrink-0 border ${
                   activeTab === t.id
-                    ? 'bg-slate-800 text-emerald-300 font-semibold border border-slate-700'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                    ? 'bg-[#EC4899] text-white border-[#EC4899] shadow-xs'
+                    : 'bg-white text-[#5C6B5F] border-[#F3D5E0] hover:border-[#F9A8D4] hover:text-[#2B342D]'
                 }`}
               >
                 {t.label}
@@ -314,531 +337,232 @@ TỈ LỆ HƯƠNG LIỆU 3 MẪU:
         </div>
 
         {toastMsg && (
-          <div className="bg-slate-950 border-b border-slate-800 px-5 py-2 text-xs text-emerald-300 font-medium flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <div className="bg-[#ECFDF3] border-b border-[#BBF7D0] px-5 py-2 text-xs text-[#15803D] font-bold flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0" />
             <span>{toastMsg}</span>
           </div>
         )}
 
         {/* SCROLLABLE BODY */}
-        <div className="p-4 sm:p-6 overflow-y-auto space-y-6 flex-1">
-          {/* MỤC 1: Ý TƯỞNG & 3 TẦNG HƯƠNG */}
-          {(activeTab === 'all' || activeTab === 'concept') && (
-            <div className="space-y-3.5">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <h3 className="text-base font-serif font-bold text-slate-100">
-                  1. Ý tưởng sản phẩm &amp; cấu trúc 3 tầng hương
-                </h3>
-                <span className="text-xs text-slate-400">
-                  Chọn từng mục để xem thuyết minh chi tiết
-                </span>
-              </div>
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-5 flex-1">
+          {/* TAB 1: TỔNG QUAN TRỰC QUAN */}
+          {activeTab === 'overview' && (
+            <div className="space-y-5">
+              {/* Interactive Perfume Bottle & Proportion Bar */}
+              <SpringPerfumeBottleSVG
+                ingredients={LAB_FORMULA_BOTTLE_ITEMS}
+                totalVolume={10}
+                concentrationPercent={10}
+                pureFragranceMl={1}
+                carrierAlcoholMl={9}
+                perfumeName="Floris Gốc"
+              />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {GROUP_LAB_REPORT_DATA.conceptAndPyramidDetails.map((item) => {
-                  const isSelected = selectedConceptId === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setSelectedConceptId(item.id)}
-                      className={`p-3.5 rounded-xl border text-left transition-colors flex flex-col justify-between gap-2 ${
-                        isSelected
-                          ? 'bg-slate-800/90 border-emerald-500/50 text-slate-100'
-                          : 'bg-slate-950/70 border-slate-800 hover:border-slate-700 text-slate-300'
-                      }`}
-                    >
-                      <div className="space-y-1">
-                        <span className="text-[11px] font-mono text-slate-400 block">
-                          {item.badge}
-                        </span>
-                        <h4 className="text-sm font-serif font-bold text-slate-100">
-                          {item.title}
-                        </h4>
-                        <p className="text-xs text-slate-400">{item.subtitle}</p>
-                      </div>
-                      <p className="text-[11px] font-mono text-slate-400 pt-2 border-t border-slate-800">
-                        {item.summary}
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {activeConceptDetail && (
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
-                  <div className="border-b border-slate-800 pb-2 flex flex-wrap items-baseline justify-between gap-2">
-                    <h4 className="text-sm font-semibold text-slate-100">
-                      {activeConceptDetail.title}
-                    </h4>
-                    <span className="text-xs font-mono text-slate-400">
-                      {activeConceptDetail.subtitle}
+              {/* 4 Visual Scent Tier Cards (No walls of text) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="p-3.5 rounded-3xl bg-[#FFFDF0] border-2 border-[#FDE68A] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#FEF08A] text-[#854D0E] text-[11px] font-bold">
+                      🌼 Hương đầu
                     </span>
+                    <span className="font-mono text-xs font-bold text-[#92400E]">40% cốt</span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                    {activeConceptDetail.specificContent.map((point, idx) => (
-                      <div
-                        key={idx}
-                        className="p-3 rounded-lg bg-slate-900/70 border border-slate-800/80 text-slate-300 leading-relaxed"
-                      >
-                        {point}
-                      </div>
-                    ))}
-                  </div>
+                  <p className="font-bold text-sm text-[#2B342D]">Hoa nhài (5 giọt)</p>
+                  <ScentFamilyVisualBadge scentFamily="Hoa cỏ" name="Hoa nhài" />
                 </div>
-              )}
-            </div>
-          )}
 
-          {/* MỤC 2: CÂU CHUYỆN THƯƠNG HIỆU & CONCEPT */}
-          {(activeTab === 'all' || activeTab === 'story') && GROUP_LAB_REPORT_DATA.brandStoryAndConcept && (
-            <div className="space-y-3.5">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <h3 className="text-base font-serif font-bold text-slate-100 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-400" />
-                  <span>2. {GROUP_LAB_REPORT_DATA.brandStoryAndConcept.tagline}</span>
-                </h3>
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-                  {GROUP_LAB_REPORT_DATA.brandStoryAndConcept.overallConcept}
-                </span>
-              </div>
-
-              <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2 text-xs text-slate-300 leading-relaxed">
-                <h4 className="font-semibold text-slate-100 flex items-center gap-1.5">
-                  <Heart className="w-3.5 h-3.5 text-pink-400" />
-                  <span>Câu chuyện thương hiệu</span>
-                </h4>
-                <p className="whitespace-pre-line">{GROUP_LAB_REPORT_DATA.brandStoryAndConcept.story}</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {GROUP_LAB_REPORT_DATA.brandStoryAndConcept.threeKeyAdjectives.map((adj, i) => (
-                  <div key={i} className="p-3 rounded-lg bg-slate-950/70 border border-slate-800 space-y-1">
-                    <span className="text-[10px] font-mono text-emerald-400 uppercase">Tính từ #{i + 1}</span>
-                    <h5 className="font-semibold text-slate-100 text-sm">{adj.word}</h5>
-                    <p className="text-xs text-slate-300 leading-relaxed">{adj.explanation}</p>
+                <div className="p-3.5 rounded-3xl bg-[#FFF5F8] border-2 border-[#FBCFE8] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#FBCFE8] text-[#9D174D] text-[11px] font-bold">
+                      🍑 Hương giữa
+                    </span>
+                    <span className="font-mono text-xs font-bold text-[#BE185D]">30% cốt</span>
                   </div>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                <div className="p-3.5 rounded-lg bg-slate-950/70 border border-slate-800 space-y-1">
-                  <span className="font-semibold text-slate-200 block">Người dùng mục tiêu (16–25 tuổi):</span>
-                  <p className="text-slate-300 leading-relaxed">
-                    {GROUP_LAB_REPORT_DATA.brandStoryAndConcept.targetUser.personality} · {GROUP_LAB_REPORT_DATA.brandStoryAndConcept.targetUser.needs}
-                  </p>
+                  <p className="font-bold text-sm text-[#2B342D]">Đào chín (4 giọt)</p>
+                  <ScentFamilyVisualBadge scentFamily="Trái cây" name="Đào" />
                 </div>
-                <div className="p-3.5 rounded-lg bg-slate-950/70 border border-slate-800 space-y-1">
-                  <span className="font-semibold text-slate-200 block">Hoàn cảnh &amp; Mùa sử dụng:</span>
-                  <p className="text-slate-300 leading-relaxed">
-                    {GROUP_LAB_REPORT_DATA.brandStoryAndConcept.usageContext.occasions} · {GROUP_LAB_REPORT_DATA.brandStoryAndConcept.usageContext.season}
-                  </p>
+
+                <div className="p-3.5 rounded-3xl bg-[#F3FDF6] border-2 border-[#BBF7D0] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#BBF7D0] text-[#166534] text-[11px] font-bold">
+                      🍦 Hương cuối
+                    </span>
+                    <span className="font-mono text-xs font-bold text-[#15803D]">30% cốt</span>
+                  </div>
+                  <p className="font-bold text-sm text-[#2B342D]">Xạ hương &amp; Vanilla (11 giọt)</p>
+                  <ScentFamilyVisualBadge scentFamily="Ngọt dịu" name="Vanilla" />
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* MỤC 3: BẢNG PHÂN TẦNG HƯƠNG & LÍ DO CHỌN NGUYÊN LIỆU */}
-          {(activeTab === 'all' || activeTab === 'reasons') && (
-            <div className="space-y-3.5">
-              <h3 className="text-base font-serif font-bold text-slate-100">
-                3. Bảng phân tầng hương &amp; Lí do chọn nguyên liệu
-              </h3>
-
-              <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/90">
+              {/* Quick Compact Lab Table */}
+              <div className="spring-card p-4 overflow-x-auto">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-bold text-[#2B342D]">Bảng định lượng 10,00 mL</h3>
+                  <span className="text-[11px] font-mono font-bold text-[#BE185D] bg-[#FCE7F3] px-2.5 py-0.5 rounded-full">
+                    1 giọt = 0,05 mL
+                  </span>
+                </div>
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-900/80 border-b border-slate-800 text-slate-400">
-                      <th className="py-2.5 px-3 font-medium">Tầng hương</th>
-                      <th className="py-2.5 px-3 font-medium">Vai trò</th>
-                      <th className="py-2.5 px-3 font-medium text-center">Bay hơi</th>
-                      <th className="py-2.5 px-3 font-medium">Thời điểm</th>
-                      <th className="py-2.5 px-3 font-medium">Nguyên liệu</th>
+                    <tr className="border-b border-[#F3DCE4] text-[#5C6B5F]">
+                      <th className="py-2 px-2.5">Thành phần</th>
+                      <th className="py-2 px-2 text-center">% cốt</th>
+                      <th className="py-2 px-2 text-right">Thể tích</th>
+                      <th className="py-2 px-2.5 text-right">Số giọt</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/70">
-                    {GROUP_LAB_REPORT_DATA.scentTierRoles?.map((tier) => (
-                      <tr key={tier.tier} className="hover:bg-slate-900/40">
-                        <td className="py-2.5 px-3 font-bold text-slate-100">Tầng {tier.tier}</td>
-                        <td className="py-2.5 px-3 text-slate-300">{tier.role}</td>
-                        <td className="py-2.5 px-3 text-center">
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-amber-300">
-                            {tier.evaporationRate}
-                          </span>
+                  <tbody className="divide-y divide-[#F8E8EE] font-mono">
+                    {GROUP_LAB_REPORT_DATA.formulaTable10ml.map((row) => (
+                      <tr key={row.name} className="hover:bg-[#FFF5F8]">
+                        <td className="py-2 px-2.5 font-sans font-bold text-[#2B342D]">
+                          {row.name}{' '}
+                          <span className="text-[10px] font-normal text-[#5C6B5F]">({row.tier})</span>
                         </td>
-                        <td className="py-2.5 px-3 text-slate-300">{tier.perceptionTime}</td>
-                        <td className="py-2.5 px-3 font-semibold text-emerald-300">{tier.ingredients}</td>
+                        <td className="py-2 px-2 text-center font-bold text-[#BE185D]">{row.blendPct}%</td>
+                        <td className="py-2 px-2 text-right font-bold text-[#15803D]">{row.volume10ml}</td>
+                        <td className="py-2 px-2.5 text-right font-bold text-[#92400E]">{row.drops10ml}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {GROUP_LAB_REPORT_DATA.ingredientSelectionReasons?.map((reason, idx) => (
-                  <div key={idx} className="p-3.5 rounded-lg bg-slate-950/80 border border-slate-800 space-y-1.5 text-xs">
-                    <span className="font-mono text-emerald-400 text-[10px] block">{reason.tier}</span>
-                    <h5 className="font-bold text-slate-100 text-sm">{reason.ingredients}</h5>
-                    <ul className="space-y-1 text-slate-300">
-                      {reason.bulletPoints.map((bp, i) => (
-                        <li key={i}>• {bp}</li>
-                      ))}
-                    </ul>
-                    <p className="pt-1.5 border-t border-slate-800 text-slate-400 italic text-[11px]">
-                      → {reason.conclusion}
+              {/* Accordions for long explanations */}
+              <div className="space-y-2.5">
+                {GROUP_LAB_REPORT_DATA.brandStoryAndConcept && (
+                  <SpringAccordion
+                    title="Câu chuyện Floris & Chân dung người dùng"
+                    badge="Slogan Xuân"
+                    tone="sakura"
+                    icon={<Heart className="w-4 h-4 text-[#EC4899]" />}
+                  >
+                    <p className="font-bold text-[#BE185D]">
+                      “{GROUP_LAB_REPORT_DATA.brandStoryAndConcept.slogan}”
                     </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* MỤC 4: BẢNG CÔNG THỨC GỐC (10,00 mL) */}
-          {(activeTab === 'all' || activeTab === 'formula') && (
-            <div className="space-y-3.5">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <h3 className="text-base font-serif font-bold text-slate-100">
-                  4. Bảng công thức gốc thực hành (Quy chuẩn 10,00 mL)
-                </h3>
-                <span className="text-xs text-slate-400">
-                  Bấm vào từng dòng nguyên liệu để xem thông tin chi tiết
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-                <div className="lg:col-span-7 rounded-xl border border-slate-800 bg-slate-950/90 overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr className="bg-slate-900/80 border-b border-slate-800 text-slate-400">
-                          <th className="py-2.5 px-3.5 font-medium">Thành phần</th>
-                          <th className="py-2.5 px-3 font-medium text-center">% hỗn hợp</th>
-                          <th className="py-2.5 px-3 font-medium text-center">% TP</th>
-                          <th className="py-2.5 px-3 text-right font-medium">Thể tích / 10 mL</th>
-                          <th className="py-2.5 px-3.5 text-right font-medium text-amber-300">Số giọt (0,05 mL)</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800/70 font-mono">
-                        {GROUP_LAB_REPORT_DATA.formulaTable10ml.map((row) => {
-                          const isRowSelected = selectedFormulaRowName === row.name;
-                          return (
-                            <tr
-                              key={row.name}
-                              onClick={() => setSelectedFormulaRowName(row.name)}
-                              className={`cursor-pointer transition-colors ${
-                                isRowSelected
-                                  ? 'bg-slate-800/90 text-slate-100'
-                                  : 'hover:bg-slate-900/50 text-slate-300'
-                              }`}
-                            >
-                              <td className="py-2.5 px-3.5 font-sans">
-                                <span className="font-semibold text-slate-100">{row.name}</span>
-                                <span className="text-[11px] text-slate-400 ml-1.5">
-                                  ({row.tier})
-                                </span>
-                              </td>
-                              <td className="py-2.5 px-3 text-center font-semibold text-amber-300">
-                                {row.blendPct}%
-                              </td>
-                              <td className="py-2.5 px-3 text-center font-semibold text-slate-200">
-                                {row.finalProductPct}%
-                              </td>
-                              <td className="py-2.5 px-3 text-right font-semibold text-emerald-400">
-                                {row.volume10ml}
-                              </td>
-                              <td className="py-2.5 px-3.5 text-right font-semibold text-amber-300">
-                                {row.drops10ml}
-                              </td>
-                            </tr>
-                          );
-                        })}
-
-                        {GROUP_LAB_REPORT_DATA.summaryRows10ml.map((sRow, i) => {
-                          const isRowSelected = selectedFormulaRowName === sRow.label;
-                          return (
-                            <tr
-                              key={sRow.label}
-                              onClick={() => setSelectedFormulaRowName(sRow.label)}
-                              className={`cursor-pointer transition-colors ${
-                                isRowSelected
-                                  ? 'bg-slate-800 text-slate-100 font-semibold'
-                                  : i === 2
-                                  ? 'bg-slate-900/90 font-semibold text-slate-100 border-t border-slate-700'
-                                  : 'bg-slate-900/50 text-slate-300'
-                              }`}
-                            >
-                              <td className="py-2.5 px-3.5 font-sans">{sRow.label}</td>
-                              <td className="py-2.5 px-3 text-center text-amber-300">
-                                {sRow.blendPct}
-                              </td>
-                              <td className="py-2.5 px-3 text-center text-slate-200">
-                                {sRow.finalProductPct}
-                              </td>
-                              <td className="py-2.5 px-3 text-right text-emerald-400">
-                                {sRow.volume10ml}
-                              </td>
-                              <td className="py-2.5 px-3.5 text-right text-amber-300">
-                                {sRow.drops10ml}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {activeFormulaRowDetail && (
-                  <div className="lg:col-span-5 p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
-                    <div className="border-b border-slate-800 pb-2.5">
-                      <span className="text-xs text-slate-400 block">
-                        {activeFormulaRowDetail.tier}
-                      </span>
-                      <h4 className="text-base font-serif font-bold text-slate-100 mt-0.5">
-                        {selectedFormulaRowName}
-                      </h4>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        {activeFormulaRowDetail.scientificName}
-                      </p>
+                    <p className="leading-relaxed whitespace-pre-line">
+                      {GROUP_LAB_REPORT_DATA.brandStoryAndConcept.story}
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                      {GROUP_LAB_REPORT_DATA.brandStoryAndConcept.threeKeyAdjectives.map((adj, i) => (
+                        <div key={i} className="p-2.5 rounded-xl bg-white border border-[#FBCFE8]">
+                          <strong className="block text-[#2B342D]">{adj.word}</strong>
+                          <span className="text-[11px] text-[#5C6B5F]">{adj.explanation}</span>
+                        </div>
+                      ))}
                     </div>
-
-                    <div className="grid grid-cols-4 gap-2 text-center font-mono text-xs">
-                      <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
-                        <span className="text-[10px] text-slate-400 block">Hỗn hợp</span>
-                        <strong className="text-amber-300">{activeFormulaRowDetail.blendPct}</strong>
-                      </div>
-                      <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
-                        <span className="text-[10px] text-slate-400 block">Thành phẩm</span>
-                        <strong className="text-slate-200">{activeFormulaRowDetail.finalProductPct}</strong>
-                      </div>
-                      <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
-                        <span className="text-[10px] text-slate-400 block">Thể tích</span>
-                        <strong className="text-emerald-400">{activeFormulaRowDetail.volume10ml}</strong>
-                      </div>
-                      <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
-                        <span className="text-[10px] text-slate-400 block">Số giọt</span>
-                        <strong className="text-amber-300">
-                          {GROUP_LAB_REPORT_DATA.formulaTable10ml.find((r) => r.name === selectedFormulaRowName)?.drops10ml ||
-                           GROUP_LAB_REPORT_DATA.summaryRows10ml.find((s) => s.label === selectedFormulaRowName)?.drops10ml ||
-                           '—'}
-                        </strong>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 text-xs">
-                      <div className="p-2.5 rounded-lg bg-slate-900/70 border border-slate-800/80 space-y-0.5">
-                        <span className="font-semibold text-slate-200 block">Hợp chất chính:</span>
-                        <p className="text-slate-300 leading-relaxed">
-                          {activeFormulaRowDetail.chemicalCompounds}
-                        </p>
-                      </div>
-                      <div className="p-2.5 rounded-lg bg-slate-900/70 border border-slate-800/80 space-y-0.5">
-                        <span className="font-semibold text-slate-200 block">Độ bay hơi &amp; cơ chế:</span>
-                        <p className="text-slate-300 leading-relaxed">
-                          {activeFormulaRowDetail.volatilityAndMechanism}
-                        </p>
-                      </div>
-                      <div className="p-2.5 rounded-lg bg-slate-900/70 border border-slate-800/80 space-y-0.5">
-                        <span className="font-semibold text-slate-200 block">Quan sát thực tế:</span>
-                        <p className="text-slate-300 leading-relaxed">
-                          {activeFormulaRowDetail.observedInLab}
-                        </p>
-                      </div>
-                      <div className="p-2.5 rounded-lg bg-slate-900/70 border border-slate-800/80 space-y-0.5">
-                        <span className="font-semibold text-slate-200 block">An toàn IFRA / SDS:</span>
-                        <p className="text-slate-300 leading-relaxed">
-                          {activeFormulaRowDetail.safetyAndIfra}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Mẫu A thực tế */}
-                    <div className="pt-2 border-t border-slate-800 flex items-center gap-3 bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
-                      <img
-                        src={FLORIS_IMAGES.sampleA}
-                        alt="Mẫu A"
-                        className="w-12 h-16 rounded object-cover border border-slate-700 shrink-0"
-                        loading="lazy"
-                      />
-                      <div className="text-[11px] text-slate-300">
-                        <strong className="text-slate-100 block font-serif">Mẫu A Thực Tế (10 mL):</strong>
-                        <span className="text-slate-400">Chai xịt thủy tinh dán nhãn Mẫu A hoàn thiện của nhóm sau 72h ủ maceration.</span>
-                      </div>
-                    </div>
-                  </div>
+                  </SpringAccordion>
                 )}
+
+                <SpringAccordion
+                  title="Cơ sở Hóa học & Lí do chọn 4 nguyên liệu"
+                  badge="Khoa học"
+                  tone="butter"
+                  icon={<Sparkles className="w-4 h-4 text-[#D97706]" />}
+                >
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {GROUP_LAB_REPORT_DATA.ingredientSelectionReasons?.map((reason, idx) => (
+                      <div key={idx} className="p-3 rounded-xl bg-white border border-[#FDE68A] space-y-1">
+                        <span className="text-[10px] font-bold text-[#92400E] block">{reason.tier}</span>
+                        <strong className="text-xs text-[#2B342D] block">{reason.ingredients}</strong>
+                        <ul className="space-y-0.5 text-[11px] text-[#4A4D48]">
+                          {reason.bulletPoints.map((bp, i) => (
+                            <li key={i}>• {bp}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </SpringAccordion>
               </div>
             </div>
           )}
 
-          {/* MỤC 5: ĐỘ TAN VÀ SỰ HÒA TRỘN CÁC THÀNH PHẦN */}
-          {(activeTab === 'all' || activeTab === 'solvent') && GROUP_LAB_REPORT_DATA.solventSurvey && (
-            <div className="space-y-3.5">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <h3 className="text-base font-serif font-bold text-slate-100 flex items-center gap-2">
-                  <FlaskConical className="w-4 h-4 text-emerald-400" />
-                  <span>5. {GROUP_LAB_REPORT_DATA.solventSurvey.title}</span>
-                </h3>
-                <span className="text-xs font-mono text-emerald-400">1 giọt = 0,05 mL</span>
-              </div>
-
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5 text-xs">
-                <h4 className="font-semibold text-slate-100">{GROUP_LAB_REPORT_DATA.solventSurvey.limitSurvey.title}</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                  {GROUP_LAB_REPORT_DATA.solventSurvey.limitSurvey.steps.map((st, i) => (
-                    <div key={i} className="p-2.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
-                      <strong className="text-emerald-400 block mb-0.5">Bước {i + 1}:</strong> {st}
-                    </div>
-                  ))}
-                </div>
-                <div className="p-2.5 rounded bg-emerald-950/40 border border-emerald-500/30 text-emerald-200">
-                  <p><strong>Kết quả:</strong> {GROUP_LAB_REPORT_DATA.solventSurvey.limitSurvey.result}</p>
-                  <p className="mt-0.5"><strong>Kết luận:</strong> {GROUP_LAB_REPORT_DATA.solventSurvey.limitSurvey.conclusion}</p>
-                </div>
-              </div>
-
-              {/* Ảnh thực tế khảo sát độ tan */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 flex items-center gap-3">
-                  <img
-                    src={FLORIS_IMAGES.verticalPipetteSolvent}
-                    alt="Nhỏ giọt 90 độ"
-                    className="w-14 h-18 rounded object-cover border border-slate-700 shrink-0"
-                    loading="lazy"
-                  />
-                  <div className="text-xs">
-                    <strong className="text-slate-100 block">Khảo sát ngưỡng bão hòa</strong>
-                    <span className="text-slate-400 text-[11px]">Nhỏ giọt góc 90° để đo ngưỡng 19–20 giọt (~1 mL) nước cất trước khi bị vẩn đục.</span>
-                  </div>
-                </div>
-                <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 flex items-center gap-3">
-                  <img
-                    src={FLORIS_IMAGES.clarityInspectionCup}
-                    alt="Kiểm tra độ trong"
-                    className="w-14 h-18 rounded object-cover border border-slate-700 shrink-0"
-                    loading="lazy"
-                  />
-                  <div className="text-xs">
-                    <strong className="text-slate-100 block">Kiểm tra độ trong suốt</strong>
-                    <span className="text-slate-400 text-[11px]">Dung dịch đồng nhất, trong suốt hoàn toàn, không đục hay tách lớp.</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                {GROUP_LAB_REPORT_DATA.solventSurvey.roles.map((r, i) => (
-                  <div key={i} className="p-3.5 rounded-lg bg-slate-950/80 border border-slate-800 space-y-1">
-                    <span className="font-mono text-amber-400 text-[10px] block">Vai trò #{i + 1}</span>
-                    <h5 className="font-bold text-slate-100">{r.name}</h5>
-                    <p className="text-slate-300 leading-relaxed">{r.role}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* MỤC 6: BA MẪU TỈ LỆ HƯƠNG LIỆU (MẪU A, MẪU B, MẪU C) */}
-          {(activeTab === 'all' || activeTab === 'variants') && (
-            <div className="space-y-3.5">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <h3 className="text-base font-serif font-bold text-slate-100">
-                  6. Ba mẫu tỉ lệ hương liệu thực nghiệm (Mẫu A, Mẫu B, Mẫu C)
-                </h3>
-                <span className="text-xs text-slate-400">
-                  Mẫu A (10% = 20 giọt), Mẫu B (20% = 40 giọt), Mẫu C (20% = 40 giọt)
-                </span>
-              </div>
-
+          {/* TAB 2: 3 MẪU THỰC NGHIỆM A, B, C */}
+          {activeTab === 'variants' && (
+            <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
                 {GROUP_LAB_REPORT_DATA.threeExperimentalVariants.map((variant) => {
                   const isSelected = selectedVariantId === variant.id;
+                  const barColors = ['#FDE047', '#FDBA74', '#E2E8F0', '#F9A8D4'];
                   return (
                     <div
                       key={variant.id}
-                      onClick={() => handleSelectAndApplyVariant(variant.id, false)}
-                      className={`p-4 rounded-xl border transition-colors cursor-pointer flex flex-col justify-between gap-3 ${
+                      className={`p-4 rounded-3xl border-2 flex flex-col justify-between gap-3 transition-all ${
                         isSelected
-                          ? 'bg-slate-800/90 border-amber-500/50'
-                          : 'bg-slate-950/70 border-slate-800 hover:border-slate-700'
+                          ? 'bg-[#FFF1F5] border-[#EC4899] shadow-md'
+                          : 'bg-white border-[#F3DCE4] hover:border-[#F9A8D4]'
                       }`}
                     >
-                      <div className="space-y-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <h4 className="text-sm font-serif font-bold text-slate-100">
-                              {variant.code}
-                            </h4>
-                            <p className="text-xs text-slate-400">{variant.subtitle}</p>
-                          </div>
-                          <span className="text-xs font-mono text-amber-300">
-                            {variant.totalFinishedPct}% TP
+                      <div className="space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-sm font-bold text-[#2B342D]">{variant.code}</h3>
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-mono font-bold bg-[#FEF9C3] text-[#854D0E] border border-[#FDE047]">
+                            {variant.totalFinishedPct}% cốt
                           </span>
                         </div>
+                        <p className="text-xs text-[#5C6B5F]">{variant.subtitle}</p>
 
-                        {/* Ảnh mẫu thực tế */}
-                        {variant.imageUrl && (
-                          <div className="relative rounded-lg overflow-hidden border border-slate-800 bg-slate-900 aspect-[16/10]">
-                            <img
-                              src={variant.imageUrl}
-                              alt={variant.code}
-                              className="w-full h-full object-cover object-center"
-                              loading="lazy"
+                        {/* Visual stacked ratio bar for this variant */}
+                        <div className="w-full h-3.5 rounded-full overflow-hidden flex border border-[#F3DCE4]">
+                          {variant.items.map((it, idx) => (
+                            <div
+                              key={it.name}
+                              style={{
+                                width: `${it.blendPct}%`,
+                                backgroundColor: barColors[idx % barColors.length],
+                              }}
+                              title={`${it.name}: ${it.blendPct}%`}
                             />
-                            <div className="absolute top-1.5 right-1.5 px-1.5 py-0.2 rounded bg-slate-950/80 text-[9px] font-mono text-emerald-300 border border-slate-700">
-                              Ảnh thật
-                            </div>
-                          </div>
-                        )}
+                          ))}
+                        </div>
 
-                        <div className="space-y-1 text-xs font-mono">
+                        <div className="space-y-1 text-xs">
                           {variant.items.map((it) => (
                             <div
                               key={it.name}
-                              className="py-1 px-2 rounded bg-slate-900/80 border border-slate-800/80 flex items-center justify-between"
+                              className="flex items-center justify-between px-2.5 py-1 rounded-xl bg-[#FFFDF8] border border-[#F5E6EC]"
                             >
-                              <span className="font-sans text-slate-300">{it.name}</span>
-                              <span className="text-slate-200">
-                                <strong>{it.finishedPct}%</strong> ({it.blendPct}%) ·{' '}
-                                <span className="text-emerald-400">{it.ml10}</span>
-                                {it.drops && (
-                                  <span className="ml-1 text-amber-300 font-semibold">({it.drops})</span>
-                                )}
+                              <span className="font-semibold text-[#2B342D]">{it.name}</span>
+                              <span className="font-mono text-[11px] text-[#BE185D] font-bold">
+                                {it.finishedPct}% ({it.drops})
                               </span>
                             </div>
                           ))}
-                          {variant.solventDetail && (
-                            <div className="py-1 px-2 rounded bg-slate-950 border border-slate-800/80 text-[11px] text-slate-400">
-                              <span className="text-slate-300 font-medium block">Dung môi:</span>
-                              <span className="text-emerald-400/90">{variant.solventDetail}</span>
-                            </div>
-                          )}
                         </div>
+
+                        {variant.imageUrl && !failedImages[variant.id] && (
+                          <SpringAccordion title="Ảnh mẫu phòng lab" tone="cream">
+                            <img
+                              src={variant.imageUrl}
+                              alt={variant.code}
+                              onError={() =>
+                                setFailedImages((prev) => ({ ...prev, [variant.id]: true }))
+                              }
+                              className="w-full h-36 object-cover rounded-xl border border-[#F3DCE4]"
+                              loading="lazy"
+                            />
+                          </SpringAccordion>
+                        )}
                       </div>
 
-                      <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
+                      <div className="flex items-center gap-2 pt-2 border-t border-[#F3DCE4]">
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSelectAndApplyVariant(variant.id, false);
-                          }}
-                          className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-medium transition-colors ${
+                          onClick={() => handleSelectAndApplyVariant(variant.id, false)}
+                          className={`flex-1 py-2 px-3 rounded-2xl text-xs font-bold transition-all ${
                             isSelected
-                              ? 'bg-amber-500 text-slate-950 font-semibold'
-                              : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800'
+                              ? 'bg-[#EC4899] text-white'
+                              : 'bg-[#FFF5F8] hover:bg-[#FCE7F3] text-[#BE185D] border border-[#FBCFE8]'
                           }`}
                         >
-                          {isSelected ? 'Đang chọn mẫu này' : 'Chọn mẫu này'}
+                          {isSelected ? 'Đang chọn' : 'Nạp mẫu'}
                         </button>
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSelectAndApplyVariant(variant.id, true);
-                          }}
-                          className="py-1.5 px-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-emerald-300 border border-slate-800 text-xs font-medium transition-colors"
+                          onClick={() => handleSelectAndApplyVariant(variant.id, true)}
+                          className="py-2 px-3 rounded-2xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold"
                         >
-                          Nạp &amp; đóng
+                          Nạp &amp; pha
                         </button>
                       </div>
                     </div>
@@ -847,275 +571,176 @@ TỈ LỆ HƯƠNG LIỆU 3 MẪU:
               </div>
 
               {activeVariantDetail && (
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
-                  <div className="border-b border-slate-800 pb-2 flex flex-wrap items-baseline justify-between gap-2">
-                    <h4 className="text-sm font-semibold text-slate-100">
-                      {activeVariantDetail.title}
-                    </h4>
-                    <span className="text-xs font-mono text-slate-400">
-                      {activeVariantDetail.ratioSummary}
+                <SpringAccordion
+                  title={`Phân tích Hóa học: ${activeVariantDetail.title}`}
+                  badge="24h – 72h"
+                  tone="leaf"
+                >
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div className="p-2.5 rounded-xl bg-white border border-[#BBF7D0]">
+                      <strong className="block text-[#15803D]">Mục đích:</strong>
+                      <p>{activeVariantDetail.purpose}</p>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-white border border-[#BBF7D0]">
+                      <strong className="block text-[#15803D]">Cơ chế Hóa học:</strong>
+                      <p>{activeVariantDetail.chemistryExplanation}</p>
+                    </div>
+                  </div>
+                </SpringAccordion>
+              )}
+            </div>
+          )}
+
+          {/* TAB 3: ĐỘ TAN & QUY TRÌNH 9 BƯỚC */}
+          {activeTab === 'lab' && (
+            <div className="space-y-4">
+              {GROUP_LAB_REPORT_DATA.solventSurvey && (
+                <div className="spring-card-leaf p-4 space-y-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <h3 className="text-sm font-bold text-[#166534] flex items-center gap-1.5">
+                      <Droplets className="w-4 h-4 text-[#16A34A]" />
+                      <span>Khảo sát độ tan &amp; dung môi (80 : 10 : 10)</span>
+                    </h3>
+                    <span className="px-2.5 py-0.5 rounded-full bg-white text-[#15803D] border border-[#86EFAC] text-[11px] font-mono font-bold">
+                      Ngưỡng: 19–20 giọt nước cất
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                    <div className="p-3 rounded-lg bg-slate-900/70 border border-slate-800/80 space-y-1">
-                      <span className="font-semibold text-slate-200 block">Mục đích điều chỉnh:</span>
-                      <p className="text-slate-300 leading-relaxed">{activeVariantDetail.purpose}</p>
+                  {/* Ratio bar */}
+                  <div className="w-full h-5 rounded-full overflow-hidden flex border border-[#86EFAC] text-[10px] font-bold">
+                    <div style={{ width: '80%' }} className="bg-[#DCFCE7] text-[#166534] flex items-center justify-center">
+                      80% Ethanol 90°
                     </div>
-                    <div className="p-3 rounded-lg bg-slate-900/70 border border-slate-800/80 space-y-1">
-                      <span className="font-semibold text-slate-200 block">Giải thích Hóa học:</span>
-                      <p className="text-slate-300 leading-relaxed">
-                        {activeVariantDetail.chemistryExplanation}
-                      </p>
+                    <div style={{ width: '10%' }} className="bg-[#FEF9C3] text-[#854D0E] flex items-center justify-center">
+                      10% Nước
                     </div>
-                    <div className="p-3 rounded-lg bg-slate-900/70 border border-slate-800/80 space-y-1">
-                      <span className="font-semibold text-slate-200 block">So sánh với mẫu gốc:</span>
-                      <p className="text-slate-300 leading-relaxed">
-                        {activeVariantDetail.comparisonWithBase}
-                      </p>
-                    </div>
-                    <div className="p-3 rounded-lg bg-slate-900/70 border border-slate-800/80 space-y-1">
-                      <span className="font-semibold text-slate-200 block">Theo dõi sau 24h – 72h:</span>
-                      <p className="text-slate-300 leading-relaxed">
-                        {activeVariantDetail.evaluation24to72h}
-                      </p>
+                    <div style={{ width: '10%' }} className="bg-[#FBCFE8] text-[#9D174D] flex items-center justify-center">
+                      10% Tinh dầu
                     </div>
                   </div>
                 </div>
               )}
-            </div>
-          )}
 
-          {/* MỤC 7 & 8: DỤNG CỤ VÀ QUY TRÌNH 9 BƯỚC */}
-          {(activeTab === 'all' || activeTab === 'tools' || activeTab === 'procedure') && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-              {(activeTab === 'all' || activeTab === 'tools') && (
-                <div
-                  className={`${
-                    activeTab === 'tools' ? 'lg:col-span-12' : 'lg:col-span-5'
-                  } p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-3`}
+              <SpringAccordion
+                title="Quy trình pha chế 9 bước & Dụng cụ phòng lab"
+                badge="9 bước"
+                tone="butter"
+                defaultOpen
+                icon={<FlaskConical className="w-4 h-4 text-[#D97706]" />}
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {GROUP_LAB_REPORT_DATA.procedureStepDetails.map((s) => (
+                    <div
+                      key={s.stepNumber}
+                      className="p-2.5 rounded-xl bg-white border border-[#FDE68A] space-y-0.5"
+                    >
+                      <span className="text-[11px] font-mono font-bold text-[#D97706]">
+                        Bước {s.stepNumber} · {s.title}
+                      </span>
+                      <p className="text-[11px] text-[#4A4D48]">{s.content}</p>
+                    </div>
+                  ))}
+                </div>
+              </SpringAccordion>
+
+              {GROUP_LAB_REPORT_DATA.schoolVsIndustryTable && (
+                <SpringAccordion
+                  title="So sánh quy trình học đường vs Công nghiệp"
+                  badge="8 tiêu chí"
+                  tone="cream"
+                  icon={<Scale className="w-4 h-4 text-[#EC4899]" />}
                 >
-                  <h3 className="text-base font-serif font-bold text-slate-100">
-                    7. Nguyên liệu &amp; dụng cụ
-                  </h3>
-                  <div className="space-y-1.5">
-                    {GROUP_LAB_REPORT_DATA.materialsAndToolsDetails.map((tool, i) => {
-                      const isSelected = selectedToolIdx === i;
-                      return (
-                        <div key={i} className="space-y-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedToolIdx(isSelected ? null : i)}
-                            className={`w-full p-2.5 rounded-lg border text-left transition-colors flex items-start gap-2 text-xs ${
-                              isSelected
-                                ? 'bg-slate-800 border-slate-700 text-slate-100 font-semibold'
-                                : 'bg-slate-900/60 border-slate-800/80 hover:border-slate-700 text-slate-300'
-                            }`}
-                          >
-                            <span className="font-mono text-slate-500 shrink-0">0{i + 1}.</span>
-                            <span>{tool.title}</span>
-                          </button>
-
-                          {isSelected && (
-                            <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-1.5 text-xs ml-4">
-                              <p className="text-slate-300 leading-relaxed">
-                                <strong className="text-slate-100">Vai trò:</strong> {tool.role}
-                              </p>
-                              <p className="text-slate-300 leading-relaxed">
-                                <strong className="text-slate-100">Chi tiết kỹ thuật:</strong>{' '}
-                                {tool.technicalDetail}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-[11px] border-collapse">
+                      <thead>
+                        <tr className="border-b border-[#F3DCE4] text-[#5C6B5F]">
+                          <th className="py-2 px-2">Tiêu chí</th>
+                          <th className="py-2 px-2 text-[#15803D]">Học đường</th>
+                          <th className="py-2 px-2 text-[#BE185D]">Công nghiệp</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#F8E8EE]">
+                        {GROUP_LAB_REPORT_DATA.schoolVsIndustryTable.map((row, idx) => (
+                          <tr key={idx}>
+                            <td className="py-2 px-2 font-bold text-[#2B342D]">{row.criterion}</td>
+                            <td className="py-2 px-2 text-[#4A4D48]">{row.school}</td>
+                            <td className="py-2 px-2 text-[#4A4D48]">{row.industry}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                </div>
-              )}
-
-              {(activeTab === 'all' || activeTab === 'procedure') && (
-                <div
-                  className={`${
-                    activeTab === 'procedure' ? 'lg:col-span-12' : 'lg:col-span-7'
-                  } p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-3`}
-                >
-                  <h3 className="text-base font-serif font-bold text-slate-100">
-                    8. Quy trình tiến hành pha chế (9 bước)
-                  </h3>
-
-                  {/* Sơ đồ infographic 9 bước */}
-                  <div className="rounded-lg overflow-hidden border border-slate-800 bg-slate-900 p-1.5">
-                    <img
-                      src={FLORIS_IMAGES.infographic9Steps}
-                      alt="Infographic 9 bước sản xuất Floris"
-                      className="w-full h-auto max-h-48 object-contain rounded"
-                      loading="lazy"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    {GROUP_LAB_REPORT_DATA.procedureStepDetails.map((stepObj, i) => {
-                      const isSelected = selectedStepIdx === i;
-                      return (
-                        <div key={i} className="space-y-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedStepIdx(isSelected ? null : i)}
-                            className={`w-full p-3 rounded-lg border text-left transition-colors flex items-start gap-2.5 text-xs ${
-                              isSelected
-                                ? 'bg-slate-800 border-emerald-500/40 text-slate-100'
-                                : 'bg-slate-900/60 border-slate-800/80 hover:border-slate-700 text-slate-300'
-                            }`}
-                          >
-                            <span className="font-mono text-emerald-400 font-semibold shrink-0">
-                              Bước {stepObj.stepNumber}:
-                            </span>
-                            <div>
-                              <span className="font-semibold text-slate-100 block">
-                                {stepObj.title}
-                              </span>
-                              <span className="text-slate-400 leading-relaxed">{stepObj.content}</span>
-                            </div>
-                          </button>
-
-                          {isSelected && (
-                            <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-1.5 text-xs ml-4">
-                              <p className="text-slate-300 leading-relaxed">
-                                <strong className="text-slate-100">Hướng dẫn thực hành:</strong>{' '}
-                                {stepObj.specificDetail}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                </SpringAccordion>
               )}
             </div>
           )}
 
-          {/* MỤC 8: SO SÁNH HỌC ĐƯỜNG VÀ CÔNG NGHIỆP */}
-          {(activeTab === 'all' || activeTab === 'comparison') && GROUP_LAB_REPORT_DATA.schoolVsIndustryTable && (
-            <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-3">
-              <h3 className="text-base font-serif font-bold text-slate-100 flex items-center gap-2">
-                <Scale className="w-4 h-4 text-amber-400" />
-                <span>8. So sánh quy trình thủ công học đường &amp; Sản xuất thương mại</span>
-              </h3>
-              <div className="overflow-x-auto rounded-lg border border-slate-800">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-900 border-b border-slate-800 text-slate-300">
-                      <th className="py-2.5 px-3 font-semibold">Tiêu chí</th>
-                      <th className="py-2.5 px-3 font-semibold text-emerald-300">Thủ công học đường</th>
-                      <th className="py-2.5 px-3 font-semibold text-blue-300">Sản xuất thương mại</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/70">
-                    {GROUP_LAB_REPORT_DATA.schoolVsIndustryTable.map((row, idx) => (
-                      <tr key={idx} className="hover:bg-slate-900/40 align-top">
-                        <td className="py-2.5 px-3 font-bold text-slate-100">{row.criterion}</td>
-                        <td className="py-2.5 px-3 text-slate-300 leading-relaxed">{row.school}</td>
-                        <td className="py-2.5 px-3 text-slate-300 leading-relaxed">{row.industry}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* MỤC 9: QUY TẮC AN TOÀN & BẢO QUẢN */}
-          {(activeTab === 'all' || activeTab === 'safety') && (
-            <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-3.5">
-              <h3 className="text-base font-serif font-bold text-slate-100">
-                9. Quy tắc an toàn, bảo quản &amp; xử lý tràn đổ
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {GROUP_LAB_REPORT_DATA.safetyRuleDetails.map((sItem, i) => {
-                  const key = `rule_${i}`;
-                  const isSelected = selectedSafetyKey === key;
-                  return (
-                    <div key={key} className="space-y-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedSafetyKey(isSelected ? null : key)}
-                        className={`w-full p-2.5 rounded-lg border text-left transition-colors flex items-start gap-2 text-xs ${
-                          isSelected
-                            ? 'bg-slate-800 border-amber-500/40 text-slate-100 font-medium'
-                            : 'bg-slate-900/60 border-slate-800/80 hover:border-slate-700 text-slate-300'
-                        }`}
-                      >
-                        <span className="font-mono text-slate-500 shrink-0">{sItem.ruleNumber}.</span>
-                        <span>{sItem.rule}</span>
-                      </button>
-
-                      {isSelected && (
-                        <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-1 text-xs">
-                          <p className="text-slate-300 leading-relaxed">
-                            <strong className="text-slate-100">Giải thích &amp; xử trí:</strong>{' '}
-                            {sItem.specificDetail}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 text-xs">
-                <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-1">
-                  <h4 className="font-semibold text-slate-200">Bảo quản:</h4>
-                  <p className="text-slate-300 leading-relaxed">{GROUP_LAB_REPORT_DATA.storageNote}</p>
-                </div>
-                <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-1">
-                  <h4 className="font-semibold text-slate-200">Xử lý tràn đổ:</h4>
-                  <p className="text-slate-300 leading-relaxed">{GROUP_LAB_REPORT_DATA.spillResponseNote}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* MỤC 10: NGUỒN TÀI LIỆU THAM KHẢO */}
-          {(activeTab === 'all' || activeTab === 'references') && GROUP_LAB_REPORT_DATA.references && (
-            <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-3">
-              <h3 className="text-base font-serif font-bold text-slate-100 flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-emerald-400" />
-                <span>10. Nguồn tài liệu tham khảo khoa học</span>
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {GROUP_LAB_REPORT_DATA.references.map((ref) => (
-                  <a
-                    key={ref.sourceNumber}
-                    href={ref.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-3.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-emerald-500/50 transition-colors flex flex-col justify-between gap-2 group text-xs"
+          {/* TAB 4: AN TOÀN & NGUỒN THAM KHẢO */}
+          {activeTab === 'safety' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {GROUP_LAB_REPORT_DATA.safetyRuleDetails.map((rule) => (
+                  <div
+                    key={rule.ruleNumber}
+                    className="p-3 rounded-2xl bg-white border border-[#FBCFE8] text-xs space-y-1"
                   >
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-mono text-emerald-400">Nguồn {ref.sourceNumber}</span>
-                        <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-emerald-400" />
-                      </div>
-                      <h5 className="font-semibold text-slate-100 group-hover:text-emerald-300">{ref.org}</h5>
-                      <p className="text-slate-400 text-[11px]">{ref.author}</p>
+                    <div className="flex items-center gap-1.5 font-bold text-[#BE185D]">
+                      <ShieldCheck className="w-4 h-4 text-[#16A34A]" />
+                      <span>Quy tắc #{rule.ruleNumber}</span>
                     </div>
-                    <span className="text-[10px] text-slate-500 font-mono pt-1.5 border-t border-slate-800">
-                      Truy cập: {ref.accessDate}
-                    </span>
-                  </a>
+                    <p className="font-semibold text-[#2B342D]">{rule.rule}</p>
+                    <p className="text-[11px] text-[#5C6B5F]">{rule.specificDetail}</p>
+                  </div>
                 ))}
               </div>
+
+              {GROUP_LAB_REPORT_DATA.references && (
+                <SpringAccordion
+                  title="Tài liệu khoa học tham khảo (IFRA / Tisserand)"
+                  badge={`${GROUP_LAB_REPORT_DATA.references.length} nguồn`}
+                  tone="leaf"
+                  icon={<BookOpen className="w-4 h-4 text-[#16A34A]" />}
+                >
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {GROUP_LAB_REPORT_DATA.references.map((ref) => (
+                      <a
+                        key={ref.sourceNumber}
+                        href={ref.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-3 rounded-xl bg-white border border-[#BBF7D0] hover:border-[#16A34A] transition-colors space-y-1 block"
+                      >
+                        <span className="text-[10px] font-mono font-bold text-[#15803D]">
+                          Nguồn {ref.sourceNumber}
+                        </span>
+                        <h4 className="font-bold text-xs text-[#2B342D]">{ref.org}</h4>
+                        <p className="text-[11px] text-[#5C6B5F]">{ref.author}</p>
+                      </a>
+                    ))}
+                  </div>
+                </SpringAccordion>
+              )}
+
+              {!failedImages['sampleA'] && (
+                <SpringAccordion title="Ảnh mẫu A thực tế của nhóm" tone="sakura">
+                  <img
+                    src={FLORIS_IMAGES.sampleA}
+                    alt="Mẫu A Floris"
+                    onError={() => setFailedImages((p) => ({ ...p, sampleA: true }))}
+                    className="max-h-56 w-auto rounded-2xl border border-[#FBCFE8] mx-auto"
+                    loading="lazy"
+                  />
+                </SpringAccordion>
+              )}
             </div>
           )}
         </div>
 
         {/* FOOTER */}
-        <div className="p-4 bg-slate-950 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <span className="text-xs text-slate-400">
-            Công thức gốc: <strong className="text-slate-200">Floris (10,00 mL)</strong> · Tổ 1 — 12A13 THPT Nguyễn Thị Minh Khai
+        <div className="p-4 bg-[#FFF5F8] border-t border-[#F5DCE4] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <span className="text-xs font-bold text-[#5C6B5F]">
+            🌸 Floris 10 mL · Tổ 1 — 12A13 THPT NTMK
           </span>
-
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 self-end sm:self-auto">
             {onOpenExperimentalWeb && (
               <button
                 type="button"
@@ -1123,19 +748,18 @@ TỈ LỆ HƯƠNG LIỆU 3 MẪU:
                   onClose();
                   onOpenExperimentalWeb();
                 }}
-                className="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs flex items-center gap-1.5 transition-colors"
+                className="px-4 py-2 rounded-2xl bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-xs flex items-center gap-1.5"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
-                <span>Chuyển sang Web riêng</span>
+                <span>Xem chi tiết</span>
               </button>
             )}
-
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium text-xs transition-colors"
+              className="px-5 py-2 rounded-2xl bg-[#EC4899] hover:bg-[#DB2777] text-white font-bold text-xs shadow-sm"
             >
-              Đóng cửa sổ
+              Bắt đầu pha chế 🌸
             </button>
           </div>
         </div>

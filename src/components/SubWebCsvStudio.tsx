@@ -2,20 +2,18 @@ import React, { useState, useRef } from 'react';
 import {
   FileSpreadsheet,
   Upload,
-  Download,
-  Sparkles,
   CheckCircle2,
   AlertTriangle,
   Plus,
   Bookmark,
   ArrowLeft,
-  FileUp,
   Table,
   RefreshCw,
 } from 'lucide-react';
 import { INGREDIENT_CATALOG, PerfumeIngredient, SEASONAL_TEMPLATES } from '../data/perfumeData';
 import { CalculatedIngredient, FormulaSlot } from '../utils/perfumeCalculations';
 import { FormulaTableAndCsv } from './FormulaTableAndCsv';
+import { ScentFamilyVisualBadge } from './SpringDecorations';
 
 interface SubWebCsvStudioProps {
   perfumeName: string;
@@ -82,7 +80,6 @@ export const SubWebCsvStudio: React.FC<SubWebCsvStudioProps> = ({
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Parse uploaded CSV file and map back to formula state
   const parseAndApplyCsvContent = (csvText: string, fileName: string) => {
     try {
       const cleanText = csvText.replace(/^\uFEFF/, '');
@@ -94,7 +91,7 @@ export const SubWebCsvStudio: React.FC<SubWebCsvStudioProps> = ({
       if (lines.length < 2) {
         setImportStatus({
           type: 'error',
-          message: 'File CSV trống hoặc không đúng định dạng bảng công thức.',
+          message: 'File CSV trống hoặc không đúng định dạng.',
         });
         return;
       }
@@ -126,15 +123,12 @@ export const SubWebCsvStudio: React.FC<SubWebCsvStudioProps> = ({
       let parsedPerfumeName: string | undefined;
       let parsedVolume: number | undefined;
       let parsedSeason: 'spring' | 'summer' | 'autumn' | 'winter' | undefined;
-
-      // Extract metadata if present, and collect ingredient rows
       const ingredientRows: { name: string; percentage: number }[] = [];
 
       for (let i = 0; i < lines.length; i++) {
         const cols = splitCsvLine(lines[i]);
         const joinedLower = lines[i].toLowerCase();
 
-        // Skip header row
         if (
           joinedLower.includes('tầng hương') &&
           (joinedLower.includes('tỉ lệ') || joinedLower.includes('nguyên liệu'))
@@ -142,7 +136,6 @@ export const SubWebCsvStudio: React.FC<SubWebCsvStudioProps> = ({
           continue;
         }
 
-        // Skip summary rows
         if (
           joinedLower.startsWith('tổng') ||
           joinedLower.startsWith('"tổng') ||
@@ -159,7 +152,6 @@ export const SubWebCsvStudio: React.FC<SubWebCsvStudioProps> = ({
           continue;
         }
 
-        // Standard exported row: STT, Tầng Hương, Tên Nguyên Liệu, Nhóm Hương, Tỉ Lệ (%), Thể Tích (mL), Số Giọt, Mùa, Tổng Bình (mL)
         if (cols.length >= 5) {
           const maybePct = parseFloat(cols[4].replace('%', '').trim());
           const ingName = cols[2];
@@ -180,7 +172,6 @@ export const SubWebCsvStudio: React.FC<SubWebCsvStudioProps> = ({
           }
         }
 
-        // Simple 2-3 column CSV fallback: Tên nguyên liệu, Tỉ lệ %
         if (cols.length >= 2) {
           const pctCol = cols.find((c) => /^\d+(\.\d+)?%?$/.test(c.trim()));
           if (pctCol && cols[0]) {
@@ -195,7 +186,7 @@ export const SubWebCsvStudio: React.FC<SubWebCsvStudioProps> = ({
       if (ingredientRows.length === 0) {
         setImportStatus({
           type: 'error',
-          message: 'Không tìm thấy dòng nguyên liệu hợp lệ trong file CSV. Hãy kiểm tra lại cột Tên nguyên liệu và Tỉ lệ (%).',
+          message: 'Không tìm thấy dòng nguyên liệu hợp lệ trong file CSV.',
         });
         return;
       }
@@ -236,13 +227,12 @@ export const SubWebCsvStudio: React.FC<SubWebCsvStudioProps> = ({
 
       setImportStatus({
         type: 'success',
-        message: `Đã nhập thành công ${Math.min(6, ingredientRows.length)} nguyên liệu từ file "${fileName}"!`,
+        message: `Đã nhập ${Math.min(6, ingredientRows.length)} thành phần từ "${fileName}".`,
       });
-    } catch (err) {
-      console.error(err);
+    } catch {
       setImportStatus({
         type: 'error',
-        message: 'Có lỗi khi đọc file CSV. Vui lòng kiểm tra định dạng file.',
+        message: 'Lỗi đọc file CSV. Hãy kiểm tra lại định dạng.',
       });
     }
   };
@@ -267,57 +257,46 @@ export const SubWebCsvStudio: React.FC<SubWebCsvStudioProps> = ({
   ];
 
   return (
-    <div className="space-y-8 animate-fadeIn">
-      {/* Sub-Web Banner Header */}
-      <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-cyan-950/50 via-slate-900 to-slate-950 border border-cyan-500/40 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold">
-              Trang Web Phụ 1 • CSV & Formula Studio
-            </span>
-            <span className="text-xs font-mono text-slate-400">
-              Phím tắt: Ctrl+S (Lưu) • Ctrl+E (Xuất CSV) • Ctrl+Z (Hoàn tác)
-            </span>
-          </div>
-          <h2 className="text-xl sm:text-2xl font-serif font-bold text-slate-100 flex items-center gap-2.5">
-            <FileSpreadsheet className="w-6 h-6 text-cyan-400" />
-            Trung Tâm Nhập Công Thức & Xuất / Nhập File CSV
+    <div className="space-y-6 animate-fadeIn">
+      {/* Header (1 Title + 1-3 Word Pill) */}
+      <div className="spring-card p-5 sm:p-6 bg-gradient-to-br from-[#FFFDF0] via-white to-[#FFF1F5] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#FEF9C3] text-[#854D0E] border border-[#FDE047]">
+            📊 CSV Studio
+          </span>
+          <h2 className="text-xl sm:text-2xl font-bold text-[#2B342D] flex items-center gap-2 mt-1">
+            <FileSpreadsheet className="w-6 h-6 text-[#D97706]" />
+            <span>Bảng Tính &amp; Nhập Xuất CSV</span>
           </h2>
-          <p className="text-xs sm:text-sm text-slate-300">
-            Trang web chuyên biệt giúp bạn nhập nhanh bảng công thức nước hoa, tải file CSV từ máy tính lên để phục hồi công thức, hoặc xuất dữ liệu định lượng chuẩn Excel.
-          </p>
         </div>
 
         <button
           type="button"
           onClick={onBackToMainWeb}
-          className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium flex items-center gap-2 self-start md:self-auto shrink-0 transition-all"
+          className="px-4 py-2.5 rounded-2xl bg-white hover:bg-[#FFF5F8] text-[#2B342D] border border-[#F3D5E0] text-xs font-bold flex items-center gap-2 self-start sm:self-auto shrink-0"
         >
-          <ArrowLeft className="w-4 h-4 text-amber-400" />
-          <span>Về Web Chính (Thiết Kế)</span>
+          <ArrowLeft className="w-4 h-4 text-[#EC4899]" />
+          <span>Về bàn pha</span>
         </button>
       </div>
 
-      {/* SECTION 1: IMPORT CSV FILE */}
-      <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl space-y-4">
+      {/* SECTION 1: IMPORT CSV */}
+      <div className="spring-card p-5 sm:p-6 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <span className="text-xs font-mono uppercase tracking-wider text-cyan-400 font-semibold">
-              Tính năng 1: Nhập dữ liệu từ file ngoài
-            </span>
-            <h3 className="text-base sm:text-lg font-serif font-bold text-slate-100 flex items-center gap-2">
-              <FileUp className="w-5 h-5 text-cyan-400" />
-              Nhập File CSV Công Thức (Import CSV)
+            <span className="text-[11px] font-bold uppercase text-[#15803D]">Nhập dữ liệu</span>
+            <h3 className="text-base sm:text-lg font-bold text-[#2B342D]">
+              Tải File CSV Công Thức
             </h3>
           </div>
 
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-2 self-start sm:self-auto shadow-lg transition-all active:scale-95"
+            className="px-4 py-2 rounded-2xl bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-xs flex items-center gap-2 self-start sm:self-auto shadow-sm"
           >
             <Upload className="w-4 h-4" />
-            <span>Chọn File .CSV Từ Máy Tính</span>
+            <span>Chọn file .CSV</span>
           </button>
         </div>
 
@@ -335,7 +314,6 @@ export const SubWebCsvStudio: React.FC<SubWebCsvStudioProps> = ({
           }}
         />
 
-        {/* Drag & Drop Zone */}
         <div
           onDragOver={(e) => {
             e.preventDefault();
@@ -349,33 +327,30 @@ export const SubWebCsvStudio: React.FC<SubWebCsvStudioProps> = ({
             if (file) handleFileUpload(file);
           }}
           onClick={() => fileInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${
+          className={`border-2 border-dashed rounded-3xl p-6 text-center cursor-pointer transition-all ${
             isDraggingOver
-              ? 'border-cyan-400 bg-cyan-500/10'
-              : 'border-slate-700 hover:border-cyan-500/50 bg-slate-950/60'
+              ? 'border-[#16A34A] bg-[#ECFDF3]'
+              : 'border-[#F3D5E0] hover:border-[#F472B6] bg-[#FFFDF8]'
           }`}
         >
-          <Upload className="w-8 h-8 text-cyan-400 mx-auto mb-2" />
-          <p className="text-xs sm:text-sm font-semibold text-slate-200">
-            Kéo thả file <code className="text-cyan-300">.csv</code> vào đây hoặc nhấn để tải file lên
-          </p>
-          <p className="text-[11px] text-slate-400 mt-1">
-            Hỗ trợ trực tiếp file CSV đã xuất từ Floris hoặc bảng CSV gồm cột Tên nguyên liệu và Tỉ lệ %
+          <Upload className="w-8 h-8 text-[#EC4899] mx-auto mb-2" />
+          <p className="text-xs sm:text-sm font-bold text-[#2B342D]">
+            Kéo thả file <code className="text-[#BE185D]">.csv</code> hoặc nhấn chọn file
           </p>
         </div>
 
         {importStatus && (
           <div
-            className={`p-3.5 rounded-xl border flex items-center gap-2.5 text-xs font-medium ${
+            className={`p-3.5 rounded-2xl border flex items-center gap-2.5 text-xs font-bold ${
               importStatus.type === 'success'
-                ? 'bg-emerald-950/50 border-emerald-500/40 text-emerald-200'
-                : 'bg-rose-950/50 border-rose-500/40 text-rose-200'
+                ? 'bg-[#ECFDF3] border-[#86EFAC] text-[#15803D]'
+                : 'bg-[#FFF1F2] border-[#FDA4AF] text-[#BE123C]'
             }`}
           >
             {importStatus.type === 'success' ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
             ) : (
-              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+              <AlertTriangle className="w-4 h-4 shrink-0" />
             )}
             <span>{importStatus.message}</span>
           </div>
@@ -383,15 +358,13 @@ export const SubWebCsvStudio: React.FC<SubWebCsvStudioProps> = ({
       </div>
 
       {/* SECTION 2: DIRECT FORMULA TABLE ENTRY */}
-      <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
+      <div className="spring-card p-5 sm:p-6 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#F5DCE4]">
           <div>
-            <span className="text-xs font-mono uppercase tracking-wider text-amber-400 font-semibold">
-              Tính năng 2: Nhập liệu trực tiếp
-            </span>
-            <h3 className="text-base sm:text-lg font-serif font-bold text-slate-100 flex items-center gap-2">
-              <Table className="w-5 h-5 text-amber-400" />
-              Bảng Nhập Công Thức Nước Hoa Nhanh
+            <span className="text-[11px] font-bold uppercase text-[#BE185D]">Chỉnh nhanh</span>
+            <h3 className="text-base sm:text-lg font-bold text-[#2B342D] flex items-center gap-2">
+              <Table className="w-5 h-5 text-[#EC4899]" />
+              <span>Bảng Định Lượng 6 Nguyên Liệu</span>
             </h3>
           </div>
 
@@ -399,44 +372,44 @@ export const SubWebCsvStudio: React.FC<SubWebCsvStudioProps> = ({
             <button
               type="button"
               onClick={onAutoBalance}
-              className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
+              className="px-3.5 py-2 rounded-2xl bg-[#F59E0B] hover:bg-[#D97706] text-white font-bold text-xs flex items-center gap-1.5 shadow-sm"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              <span>Cân bằng 100%</span>
+              <span>Cân 100%</span>
             </button>
 
             <button
               type="button"
               onClick={onQuickSave}
-              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 font-medium text-xs flex items-center gap-1.5 active:scale-95 transition-all"
+              className="px-3.5 py-2 rounded-2xl bg-[#ECFDF3] hover:bg-[#DCFCE7] text-[#15803D] border border-[#86EFAC] font-bold text-xs flex items-center gap-1.5"
             >
               <Bookmark className="w-3.5 h-3.5" />
-              <span>Lưu nhanh (Ctrl+S)</span>
+              <span>Lưu mẫu</span>
             </button>
           </div>
         </div>
 
-        {/* Metadata Inputs Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-mono text-slate-300">Tên công thức nước hoa:</label>
+        {/* Metadata Inputs */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-[#5C6B5F]">Tên nước hoa</label>
             <input
               type="text"
               value={perfumeName}
               onChange={(e) => onChangePerfumeName(e.target.value)}
-              placeholder="Nhập tên nước hoa..."
-              className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-100 focus:border-amber-500 focus:outline-none"
+              placeholder="Tên công thức..."
+              className="w-full px-3.5 py-2 rounded-2xl bg-[#FFFDF8] border border-[#F3D5E0] text-xs font-semibold text-[#2B342D] focus:border-[#EC4899] focus:outline-none"
             />
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-mono text-slate-300">Mùa chủ đạo:</label>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-[#5C6B5F]">Mùa chủ đạo</label>
             <select
               value={selectedSeason}
               onChange={(e) =>
                 onSelectSeason(e.target.value as 'spring' | 'summer' | 'autumn' | 'winter')
               }
-              className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-100 focus:border-amber-500 focus:outline-none"
+              className="w-full px-3.5 py-2 rounded-2xl bg-[#FFFDF8] border border-[#F3D5E0] text-xs font-semibold text-[#2B342D] focus:border-[#EC4899] focus:outline-none"
             >
               <option value="spring">{SEASONAL_TEMPLATES.spring.title}</option>
               <option value="summer">{SEASONAL_TEMPLATES.summer.title}</option>
@@ -445,8 +418,8 @@ export const SubWebCsvStudio: React.FC<SubWebCsvStudioProps> = ({
             </select>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-mono text-slate-300">Tổng thể tích bình (mL):</label>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-[#5C6B5F]">Thể tích (mL)</label>
             <input
               type="number"
               min={5}
@@ -456,12 +429,12 @@ export const SubWebCsvStudio: React.FC<SubWebCsvStudioProps> = ({
                 const v = parseInt(e.target.value, 10);
                 if (!isNaN(v) && v > 0) onChangeVolume(v);
               }}
-              className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs font-mono text-amber-300 font-bold focus:border-amber-500 focus:outline-none"
+              className="w-full px-3.5 py-2 rounded-2xl bg-[#FFFDF8] border border-[#F3D5E0] text-xs font-mono font-bold text-[#BE185D] focus:border-[#EC4899] focus:outline-none"
             />
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-mono text-slate-300">Nồng độ tinh dầu:</label>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-[#5C6B5F]">Nồng độ</label>
             <select
               value={concentrationPercent}
               onChange={(e) => {
@@ -469,45 +442,51 @@ export const SubWebCsvStudio: React.FC<SubWebCsvStudioProps> = ({
                 const found = concentrationPresets.find((c) => c.pct === pct);
                 onChangeConcentration(found ? found.name : `Custom (${pct}%)`, pct);
               }}
-              className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-100 focus:border-amber-500 focus:outline-none"
+              className="w-full px-3.5 py-2 rounded-2xl bg-[#FFFDF8] border border-[#F3D5E0] text-xs font-semibold text-[#2B342D] focus:border-[#EC4899] focus:outline-none"
             >
               {concentrationPresets.map((c) => (
                 <option key={c.pct} value={c.pct}>
-                  {c.name} — {c.pct}%
+                  {c.name} ({c.pct}%)
                 </option>
               ))}
             </select>
           </div>
         </div>
 
-        {/* 6 Ingredients Spreadsheet Input Table */}
-        <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/70">
+        {/* 6 Ingredients Spreadsheet Table */}
+        <div className="overflow-x-auto rounded-2xl border border-[#F3DCE4] bg-white">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="border-b border-slate-800 bg-slate-900/90 text-[11px] font-mono text-slate-400 uppercase">
-                <th className="py-3 px-3">#</th>
-                <th className="py-3 px-3">Tầng hương</th>
-                <th className="py-3 px-3">Chọn nguyên liệu từ danh mục</th>
-                <th className="py-3 px-3">Hoặc đặt tên tùy chỉnh</th>
-                <th className="py-3 px-3 text-center">Nhập tỉ lệ (%)</th>
-                <th className="py-3 px-3 text-right">Định lượng (mL / Giọt)</th>
+              <tr className="border-b border-[#F3DCE4] bg-[#FFF5F8] text-[11px] font-bold text-[#5C6B5F]">
+                <th className="py-2.5 px-3">Tầng</th>
+                <th className="py-2.5 px-3">Nguyên liệu</th>
+                <th className="py-2.5 px-3">Tên riêng</th>
+                <th className="py-2.5 px-3 text-center">Tỷ lệ %</th>
+                <th className="py-2.5 px-3 text-right">Định lượng</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
+            <tbody className="divide-y divide-[#F8E8EE]">
               {slots.map((slot, idx) => {
                 const calc = calculatedIngredients[idx];
                 const stdList = INGREDIENT_CATALOG[slot.tier];
                 const custList = customIngredients[slot.tier] || [];
 
                 return (
-                  <tr key={slot.key} className="hover:bg-slate-900/40">
-                    <td className="py-3 px-3 font-mono text-amber-400 font-bold">
-                      #{slot.slotNumber}
+                  <tr key={slot.key} className="hover:bg-[#FFFDF8]">
+                    <td className="py-2.5 px-3 font-bold whitespace-nowrap">
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] ${
+                          slot.tier === 'top'
+                            ? 'bg-[#FEF9C3] text-[#854D0E]'
+                            : slot.tier === 'heart'
+                            ? 'bg-[#FCE7F3] text-[#BE185D]'
+                            : 'bg-[#DCFCE7] text-[#15803D]'
+                        }`}
+                      >
+                        {slot.tierLabel}
+                      </span>
                     </td>
-                    <td className="py-3 px-3 font-mono text-slate-300 whitespace-nowrap">
-                      {slot.tierLabel}
-                    </td>
-                    <td className="py-3 px-3 min-w-[220px]">
+                    <td className="py-2.5 px-3 min-w-[200px]">
                       <div className="flex items-center gap-1.5">
                         <select
                           value={slot.ingredientId}
@@ -518,7 +497,7 @@ export const SubWebCsvStudio: React.FC<SubWebCsvStudioProps> = ({
                               onUpdateSlotIngredient(slot.key, e.target.value);
                             }
                           }}
-                          className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-100 focus:border-amber-500 focus:outline-none"
+                          className="w-full px-2.5 py-1.5 rounded-xl bg-[#FFFDF8] border border-[#F3D5E0] text-xs font-semibold text-[#2B342D] focus:border-[#EC4899] focus:outline-none"
                         >
                           <optgroup label="Nguyên liệu chuẩn">
                             {stdList.map((item) => (
@@ -528,7 +507,7 @@ export const SubWebCsvStudio: React.FC<SubWebCsvStudioProps> = ({
                             ))}
                           </optgroup>
                           {custList.length > 0 && (
-                            <optgroup label="Nguyên liệu của bạn">
+                            <optgroup label="Nguyên liệu tự thêm">
                               {custList.map((item) => (
                                 <option key={item.id} value={item.id}>
                                   ⭐ {item.name}
@@ -536,28 +515,33 @@ export const SubWebCsvStudio: React.FC<SubWebCsvStudioProps> = ({
                               ))}
                             </optgroup>
                           )}
-                          <option value="__add_custom__">✨ + Thêm nguyên liệu mới...</option>
+                          <option value="__add_custom__">✨ + Thêm mới...</option>
                         </select>
                         <button
                           type="button"
                           onClick={() => onOpenAddCustomIngredient(slot.key, slot.tier)}
-                          className="p-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 shrink-0"
-                          title="Thêm nguyên liệu của riêng bạn"
+                          aria-label={`Thêm nguyên liệu cho ${slot.tierLabel}`}
+                          className="p-1.5 rounded-xl bg-[#FFF1F5] hover:bg-[#FCE7F3] text-[#BE185D] border border-[#FBCFE8] shrink-0"
                         >
                           <Plus className="w-3.5 h-3.5" />
                         </button>
                       </div>
+                      {calc && (
+                        <div className="mt-1">
+                          <ScentFamilyVisualBadge scentFamily={calc.scentFamily} name={calc.name} />
+                        </div>
+                      )}
                     </td>
-                    <td className="py-3 px-3 min-w-[170px]">
+                    <td className="py-2.5 px-3 min-w-[150px]">
                       <input
                         type="text"
                         value={slot.customName || ''}
                         onChange={(e) => onUpdateSlotCustomName(slot.key, e.target.value)}
-                        placeholder={calc?.name || 'Tên hiển thị riêng...'}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 focus:border-amber-500 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none"
+                        placeholder={calc?.name || 'Nhãn phụ...'}
+                        className="w-full px-2.5 py-1.5 rounded-xl bg-[#FFFDF8] border border-[#F3D5E0] text-xs text-[#2B342D] focus:border-[#EC4899] focus:outline-none"
                       />
                     </td>
-                    <td className="py-3 px-3 text-center">
+                    <td className="py-2.5 px-3 text-center">
                       <div className="inline-flex items-center gap-1">
                         <input
                           type="number"
@@ -571,41 +555,39 @@ export const SubWebCsvStudio: React.FC<SubWebCsvStudioProps> = ({
                               isNaN(val) ? 0 : Math.max(0, Math.min(100, val))
                             );
                           }}
-                          className="w-16 px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-center font-mono font-bold text-amber-300 focus:border-amber-500 focus:outline-none"
+                          className="w-14 px-2 py-1 rounded-xl bg-[#FFF5F8] border border-[#FBCFE8] text-center font-mono font-bold text-[#BE185D] focus:outline-none"
                         />
-                        <span className="font-mono text-slate-400">%</span>
+                        <span className="font-mono text-[#5C6B5F]">%</span>
                       </div>
                     </td>
-                    <td className="py-3 px-3 text-right font-mono whitespace-nowrap">
-                      <span className="text-emerald-400 font-bold">{calc?.volumeMl} mL</span>
-                      <span className="text-slate-500 ml-1.5">(~{calc?.drops} giọt)</span>
+                    <td className="py-2.5 px-3 text-right font-mono whitespace-nowrap">
+                      <span className="text-[#15803D] font-bold">{calc?.volumeMl} mL</span>
+                      <span className="text-[#5C6B5F] ml-1">(~{calc?.drops})</span>
                     </td>
                   </tr>
                 );
               })}
             </tbody>
             <tfoot>
-              <tr className="bg-slate-900/90 border-t border-slate-800 font-mono text-xs">
-                <td colSpan={4} className="py-3 px-3 font-bold text-slate-300">
-                  Tổng tỉ lệ công thức hiện tại (Đầu {tierTotals.top}% • Giữa {tierTotals.heart}% • Cuối {tierTotals.base}%):
+              <tr className="bg-[#ECFDF3]/70 border-t border-[#BBF7D0] font-mono text-xs">
+                <td colSpan={3} className="py-2.5 px-3 font-sans font-bold text-[#166534]">
+                  Tổng (Đầu {tierTotals.top}% · Giữa {tierTotals.heart}% · Cuối {tierTotals.base}%)
                 </td>
                 <td
-                  className={`py-3 px-3 text-center font-bold text-sm ${
-                    isValidTotal ? 'text-emerald-400' : 'text-rose-400'
+                  className={`py-2.5 px-3 text-center font-bold text-sm ${
+                    isValidTotal ? 'text-[#15803D]' : 'text-[#D97706]'
                   }`}
                 >
                   {totalPercentage}%
                 </td>
-                <td className="py-3 px-3 text-right font-bold text-amber-300">
-                  {totalVolume} mL
-                </td>
+                <td className="py-2.5 px-3 text-right font-bold text-[#BE185D]">{totalVolume} mL</td>
               </tr>
             </tfoot>
           </table>
         </div>
       </div>
 
-      {/* SECTION 3: EXPORT CSV & QUANTITATIVE TABLE */}
+      {/* SECTION 3: QUANTITATIVE TABLE & BOTTLE */}
       <FormulaTableAndCsv
         ingredients={calculatedIngredients}
         totalVolume={totalVolume}

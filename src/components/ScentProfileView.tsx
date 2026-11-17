@@ -3,12 +3,8 @@ import {
   Compass,
   Clock,
   Wind,
-  Sparkles,
-  Layers,
   ThermometerSun,
-  Droplets,
   Info,
-  Sliders,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -20,6 +16,8 @@ import {
   Tooltip,
 } from 'recharts';
 import { CalculatedIngredient } from '../utils/perfumeCalculations';
+import { SpringPerfumeBottleSVG } from './SpringPerfumeBottleSVG';
+import { SpringAccordion } from './SpringAccordion';
 
 interface ScentProfileViewProps {
   calculatedIngredients: CalculatedIngredient[];
@@ -31,6 +29,7 @@ interface ScentProfileViewProps {
 
 interface ScentDimension {
   facet: string;
+  emoji: string;
   english: string;
   score: number;
   fullMark: number;
@@ -43,63 +42,68 @@ export const ScentProfileView: React.FC<ScentProfileViewProps> = ({
   calculatedIngredients,
   tierTotals,
   seasonName,
-  concentrationName,
   totalVolume,
 }) => {
-  const [hoveredFacet, setHoveredFacet] = useState<string | null>(null);
+  const [, setHoveredFacet] = useState<string | null>(null);
 
-  // Calculate dynamic scores for each fragrance facet based on actual active ingredients & percentages
   const facetsMap: Record<
     string,
-    { english: string; base: number; contributors: { name: string; pct: number }[]; desc: string; color: string }
+    { emoji: string; english: string; base: number; contributors: { name: string; pct: number }[]; desc: string; color: string }
   > = {
     'Tươi Mát': {
+      emoji: '🌿',
       english: 'Fresh & Herbs',
       base: 15,
       contributors: [],
-      desc: 'Cảm giác thanh sạch, sảng khoái, the mát từ bạc hà, hoa cam và thảo mộc xanh',
-      color: '#2DD4BF',
+      desc: 'Thanh sạch, sảng khoái từ thảo mộc xanh và lá non',
+      color: '#22C55E',
     },
     'Cam Chanh': {
+      emoji: '🍋',
       english: 'Citrus Zest',
       base: 15,
       contributors: [],
-      desc: 'Bừng sáng, mọng nước, lấp lánh từ tép cam quýt và tinh dầu vỏ chanh bergamot',
-      color: '#FACC15',
+      desc: 'Tươi sáng, mọng nước từ cam bergamot và vỏ chanh',
+      color: '#EAB308',
     },
     'Nồng Nàn': {
+      emoji: '✨',
       english: 'Warm Spicy',
       base: 15,
       contributors: [],
-      desc: 'Hương cay ấm nồng, kích thích khứu giác từ quế, tiêu hồng và bạch đậu khấu',
-      color: '#FB7185',
+      desc: 'Cay ấm nhẹ từ quế và tiêu hồng',
+      color: '#F43F5E',
     },
     'Ngọt Ngào': {
+      emoji: '🍦',
       english: 'Sweet Gourmand',
       base: 15,
       contributors: [],
-      desc: 'Vị mật ngọt dịu dàng, êm ái của vani Madagascar, hổ phách và hoa ngọc lan tây',
+      desc: 'Ngọt dịu, êm ái từ vani và hổ phách',
       color: '#F59E0B',
     },
     'Gỗ Trầm': {
+      emoji: '🪵',
       english: 'Woody & Earthy',
       base: 15,
       contributors: [],
-      desc: 'Mộc mạc, tĩnh tại, đĩnh đạc từ đàn hương Mysore, tuyết tùng và hoắc hương',
-      color: '#D97706',
+      desc: 'Mộc mạc, tĩnh tại từ đàn hương và tuyết tùng',
+      color: '#B45309',
     },
     'Hoa Cỏ': {
+      emoji: '🌸',
       english: 'Floral Bouquet',
       base: 15,
       contributors: [],
-      desc: 'Nét kiêu sa, đằm thắm mật hoa từ hồng de Mai, hoa nhài Sambac và phong lữ',
-      color: '#F43F5E',
+      desc: 'Thanh tao, mềm mại từ hoa nhài, hoa anh đào và hoa hồng',
+      color: '#EC4899',
     },
     'Quyến Rũ': {
+      emoji: '🤍',
       english: 'Musk & Amber',
       base: 15,
       contributors: [],
-      desc: 'Làn da sạch sẽ, gợi cảm bí ẩn từ xạ hương trắng, rễ diên vĩ và nhựa thơm',
+      desc: 'Sạch sẽ, trong trẻo từ xạ hương trắng',
       color: '#A855F7',
     },
   };
@@ -111,7 +115,6 @@ export const ScentProfileView: React.FC<ScentProfileViewProps> = ({
     const fam = ing.scentFamily.toLowerCase();
     const name = ing.name.toLowerCase();
 
-    // 1. Tươi mát (Fresh)
     if (
       fam.includes('tươi') ||
       fam.includes('fresh') ||
@@ -119,13 +122,13 @@ export const ScentProfileView: React.FC<ScentProfileViewProps> = ({
       name.includes('bạc hà') ||
       name.includes('neroli') ||
       name.includes('phong lữ') ||
-      name.includes('geranium')
+      name.includes('geranium') ||
+      name.includes('lê')
     ) {
       facetsMap['Tươi Mát'].base += p * 1.8;
       facetsMap['Tươi Mát'].contributors.push({ name: ing.name, pct: p });
     }
 
-    // 2. Cam Chanh (Citrus)
     if (
       fam.includes('cam') ||
       fam.includes('citrus') ||
@@ -139,7 +142,6 @@ export const ScentProfileView: React.FC<ScentProfileViewProps> = ({
       facetsMap['Cam Chanh'].contributors.push({ name: ing.name, pct: p });
     }
 
-    // 3. Nồng Nàn (Spicy / Warm)
     if (
       fam.includes('cay') ||
       fam.includes('gia vị') ||
@@ -153,22 +155,21 @@ export const ScentProfileView: React.FC<ScentProfileViewProps> = ({
       facetsMap['Nồng Nàn'].contributors.push({ name: ing.name, pct: p });
     }
 
-    // 4. Ngọt Ngào (Sweet Gourmand)
     if (
       fam.includes('ngọt') ||
       fam.includes('gourmand') ||
+      fam.includes('trái cây') ||
+      name.includes('đào') ||
       name.includes('vani') ||
       name.includes('vanilla') ||
       name.includes('hổ phách') ||
       name.includes('amber') ||
-      name.includes('ylang') ||
-      name.includes('ngọc lan')
+      name.includes('ylang')
     ) {
       facetsMap['Ngọt Ngào'].base += p * 1.7;
       facetsMap['Ngọt Ngào'].contributors.push({ name: ing.name, pct: p });
     }
 
-    // 5. Gỗ Trầm (Woody)
     if (
       fam.includes('gỗ') ||
       fam.includes('woody') ||
@@ -177,31 +178,26 @@ export const ScentProfileView: React.FC<ScentProfileViewProps> = ({
       name.includes('tuyết tùng') ||
       name.includes('hoắc hương') ||
       name.includes('patchouli') ||
-      name.includes('vetiver') ||
-      name.includes('hương bài')
+      name.includes('vetiver')
     ) {
       facetsMap['Gỗ Trầm'].base += p * 1.8;
       facetsMap['Gỗ Trầm'].contributors.push({ name: ing.name, pct: p });
     }
 
-    // 6. Hoa Cỏ (Floral)
     if (
       fam.includes('hoa') ||
       fam.includes('floral') ||
       name.includes('hồng') ||
       name.includes('nhài') ||
       name.includes('jasmine') ||
-      name.includes('rose') ||
+      name.includes('anh đào') ||
       name.includes('oải hương') ||
-      name.includes('lavender') ||
-      name.includes('diên vĩ') ||
-      name.includes('iris')
+      name.includes('diên vĩ')
     ) {
       facetsMap['Hoa Cỏ'].base += p * 1.8;
       facetsMap['Hoa Cỏ'].contributors.push({ name: ing.name, pct: p });
     }
 
-    // 7. Quyến Rũ (Oriental / Musk)
     if (
       fam.includes('phương đông') ||
       fam.includes('oriental') ||
@@ -209,21 +205,18 @@ export const ScentProfileView: React.FC<ScentProfileViewProps> = ({
       fam.includes('musk') ||
       fam.includes('phấn') ||
       name.includes('xạ hương') ||
-      name.includes('musk') ||
-      name.includes('amber') ||
-      name.includes('hổ phách')
+      name.includes('musk')
     ) {
       facetsMap['Quyến Rũ'].base += p * 1.8;
       facetsMap['Quyến Rũ'].contributors.push({ name: ing.name, pct: p });
     }
   });
 
-  // Format dataset for Recharts RadarChart
   const radarChartData: ScentDimension[] = Object.entries(facetsMap).map(([facet, data]) => {
-    const rawScore = Math.round(data.base);
-    const score = Math.min(100, Math.max(15, rawScore));
+    const score = Math.min(100, Math.max(15, Math.round(data.base)));
     return {
       facet,
+      emoji: data.emoji,
       english: data.english,
       score,
       fullMark: 100,
@@ -233,55 +226,40 @@ export const ScentProfileView: React.FC<ScentProfileViewProps> = ({
     };
   });
 
-  // Top dominant olfactory facet
   const dominantFacet = [...radarChartData].sort((a, b) => b.score - a.score)[0];
-
-  // Performance calculations
   const isHeavyBase = tierTotals.base >= 30;
   const isHighTop = tierTotals.top >= 35;
-  const longevityText = isHeavyBase ? '8 - 12 giờ (Rất bền mùi)' : '5 - 7 giờ (Bền mùi vừa phải)';
-  const sillageText = isHighTop ? 'Tỏa rộng (1.5 - 2m)' : 'Vừa phải (1 sải tay)';
+  const longevityText = isHeavyBase ? '8–12 giờ' : '5–7 giờ';
+  const sillageText = isHighTop ? 'Tỏa 1.5–2m' : 'Vừa phải';
 
-  // Custom Recharts Tooltip Component
+  const pureMl = Number(((totalVolume * 10) / 100).toFixed(2));
+  const carrierMl = Number((totalVolume - pureMl).toFixed(2));
+
   const CustomRadarTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data: ScentDimension = payload[0].payload;
       return (
-        <div className="bg-slate-950/95 border border-amber-500/50 p-3 rounded-xl shadow-2xl backdrop-blur-md max-w-xs text-xs space-y-1.5 z-50">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
-            <span className="font-bold text-amber-300 font-serif text-sm">
-              {data.facet}
+        <div className="bg-white/95 border-2 border-[#FBCFE8] p-3 rounded-2xl shadow-lg max-w-xs text-xs space-y-1.5 z-50">
+          <div className="flex items-center justify-between border-b border-[#F3DCE4] pb-1">
+            <span className="font-bold text-[#BE185D]">
+              {data.emoji} {data.facet}
             </span>
-            <span className="font-mono text-[11px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
-              {data.score} / 100
+            <span className="font-mono text-[11px] px-2 py-0.5 rounded-full bg-[#FCE7F3] text-[#BE185D] font-bold">
+              {data.score}/100
             </span>
           </div>
-
-          <p className="text-[11px] text-slate-300 leading-tight">
-            {data.description}
-          </p>
-
-          <div className="pt-1.5 border-t border-slate-800/80">
-            <span className="text-[10px] text-slate-400 font-mono block mb-1">
-              Nguyên liệu đóng góp:
-            </span>
-            {data.contributors.length > 0 ? (
-              <div className="flex flex-wrap gap-1">
-                {data.contributors.map((c, i) => (
-                  <span
-                    key={i}
-                    className="text-[10px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-200 font-mono"
-                  >
-                    {c.name.split(' ')[0]} ({c.pct}%)
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <span className="text-[10px] text-slate-500 italic">
-                Nốt hương nền cơ bản (chưa có nguyên liệu chủ đạo)
-              </span>
-            )}
-          </div>
+          {data.contributors.length > 0 && (
+            <div className="flex flex-wrap gap-1 pt-0.5">
+              {data.contributors.map((c, i) => (
+                <span
+                  key={i}
+                  className="text-[10px] px-2 py-0.5 rounded-full bg-[#ECFDF3] text-[#15803D] font-mono font-bold"
+                >
+                  {c.name.split('(')[0].trim()} ({c.pct}%)
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       );
     }
@@ -289,41 +267,35 @@ export const ScentProfileView: React.FC<ScentProfileViewProps> = ({
   };
 
   return (
-    <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 sm:p-6 backdrop-blur-sm shadow-xl">
-      {/* Section Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-        <div>
-          <span className="text-xs font-mono uppercase tracking-wider text-amber-400/90 font-semibold">
-            Bước 4: Trực Quan Hóa Cảm Quan (Recharts)
+    <div className="spring-card-sakura p-5 sm:p-6 space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <span className="px-3 py-1 rounded-full bg-white text-[#BE185D] text-xs font-bold border border-[#FBCFE8] whitespace-nowrap">
+            Bước 4 · Hồ sơ mùi
           </span>
-          <h2 className="text-lg font-serif font-bold text-slate-100 flex items-center gap-2">
-            <Compass className="w-5 h-5 text-amber-400" />
-            Hồ Sơ Mùi Hương Đa Chiều (Recharts RadarChart)
+          <h2 className="text-lg font-bold text-[#2B342D] flex items-center gap-2">
+            <Compass className="w-5 h-5 text-[#EC4899]" />
+            <span>Biểu đồ mùi hương</span>
           </h2>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300 font-mono">
-            Nhóm chủ đạo: <strong>{dominantFacet.facet}</strong> ({dominantFacet.score}/100)
-          </span>
-        </div>
+        <span className="text-xs px-3 py-1 rounded-full bg-[#FEF3C7] border border-[#FCD34D] text-[#92400E] font-bold self-start sm:self-auto">
+          {dominantFacet.emoji} Chủ đạo: {dominantFacet.facet} ({dominantFacet.score})
+        </span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-        {/* Left: Recharts Radar Chart */}
-        <div className="lg:col-span-6 flex flex-col items-center justify-center p-3 sm:p-4 bg-slate-950/70 rounded-2xl border border-slate-800 relative">
-          <div className="w-full h-80 sm:h-96">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+        {/* Left: Pastel Radar Chart */}
+        <div className="lg:col-span-6 p-4 rounded-3xl bg-white/95 border border-[#FBCFE8] flex flex-col items-center justify-center gap-4">
+          <div className="w-full h-72 sm:h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={radarChartData} margin={{ top: 15, right: 25, bottom: 15, left: 25 }}>
-                <PolarGrid
-                  gridType="polygon"
-                  stroke="#334155"
-                  strokeDasharray="3 3"
-                />
+              <RadarChart data={radarChartData} margin={{ top: 24, right: 32, bottom: 24, left: 32 }}>
+                <PolarGrid gridType="polygon" stroke="#F3DCE4" strokeDasharray="3 3" />
                 <PolarAngleAxis
                   dataKey="facet"
                   tick={(props: any) => {
                     const { payload, x, y, cx } = props;
+                    const item = radarChartData.find((d) => d.facet === payload?.value);
                     const isDominant = payload?.value === dominantFacet.facet;
                     return (
                       <text
@@ -331,167 +303,100 @@ export const ScentProfileView: React.FC<ScentProfileViewProps> = ({
                         y={y}
                         textAnchor={cx != null && x > cx ? 'start' : cx != null && x < cx ? 'end' : 'middle'}
                         dominantBaseline="central"
-                        className="text-[11px] font-sans transition-colors"
-                        fill={isDominant ? '#F59E0B' : '#94A3B8'}
-                        fontWeight={isDominant ? 700 : 500}
+                        className="text-[11px] font-sans"
+                        fill={isDominant ? '#BE185D' : '#4A4D48'}
+                        fontWeight={isDominant ? 800 : 600}
                       >
-                        {payload?.value}
+                        {item ? `${item.emoji} ${payload?.value}` : payload?.value}
                       </text>
                     );
                   }}
                 />
                 <PolarRadiusAxis
-                  angle={90}
+                  angle={64}
                   domain={[0, 100]}
-                  stroke="#475569"
-                  tick={{ fill: '#64748B', fontSize: 9 }}
+                  stroke="#E5E7EB"
+                  tick={{ fill: '#7A6B72', fontSize: 9 }}
                   tickCount={5}
                 />
                 <Radar
-                  name="Hồ Sơ Mùi Hương"
+                  name="Hồ sơ mùi"
                   dataKey="score"
-                  stroke="#F59E0B"
-                  fill="#F59E0B"
-                  fillOpacity={0.35}
+                  stroke="#EC4899"
+                  fill="#F9A8D4"
+                  fillOpacity={0.45}
                   strokeWidth={2.5}
-                  dot={{
-                    r: 4,
-                    fill: '#FDE68A',
-                    stroke: '#B45309',
-                    strokeWidth: 2,
-                  }}
-                  activeDot={{
-                    r: 6,
-                    fill: '#F59E0B',
-                    stroke: '#FFFFFF',
-                    strokeWidth: 2,
-                  }}
-                  isAnimationActive={true}
+                  isAnimationActive={false}
+                  dot={{ r: 4, fill: '#FEF08A', stroke: '#DB2777', strokeWidth: 2 }}
+                  activeDot={{ r: 6, fill: '#EC4899', stroke: '#FFFFFF', strokeWidth: 2 }}
                 />
                 <Tooltip content={<CustomRadarTooltip />} />
               </RadarChart>
             </ResponsiveContainer>
           </div>
 
-          {/* Interactive Facet Badges below radar */}
-          <div className="w-full flex flex-wrap items-center justify-center gap-1.5 mt-2 pt-3 border-t border-slate-800/80">
+          <div className="w-full flex flex-wrap items-center justify-center gap-1.5 pt-2 border-t border-[#F6DCE5]">
             {radarChartData.map((d) => (
               <span
                 key={d.facet}
                 onMouseEnter={() => setHoveredFacet(d.facet)}
                 onMouseLeave={() => setHoveredFacet(null)}
-                className={`text-[11px] px-2 py-0.5 rounded-full font-mono transition-all cursor-default border ${
+                className={`text-[11px] px-2.5 py-0.5 rounded-full font-bold border ${
                   d.facet === dominantFacet.facet
-                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-bold'
-                    : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+                    ? 'bg-[#FCE7F3] text-[#BE185D] border-[#F472B6]'
+                    : 'bg-[#FFFDF8] text-[#5C6B5F] border-[#F3DCE4]'
                 }`}
               >
-                {d.facet}: {d.score}
+                {d.emoji} {d.facet} {d.score}
               </span>
             ))}
           </div>
-          <p className="text-[11px] text-slate-500 mt-2 text-center">
-            * Rê chuột lên các điểm radar để xem chi tiết nốt hương đóng góp
-          </p>
         </div>
 
-        {/* Right: Olfactory Pyramid & Metrics */}
-        <div className="lg:col-span-6 space-y-4">
-          {/* Visual Olfactory Pyramid Layer Stack */}
-          <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2.5">
-            <h3 className="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold flex items-center gap-1.5 mb-2">
-              <Layers className="w-4 h-4 text-amber-400" />
-              Cấu Trúc Kim Tự Tháp Hương (Olfactory Pyramid)
-            </h3>
+        {/* Right: Color-Layered Bottle + Quick Metrics */}
+        <div className="lg:col-span-6 flex flex-col gap-4">
+          <SpringPerfumeBottleSVG
+            ingredients={calculatedIngredients}
+            totalVolume={totalVolume}
+            concentrationPercent={Math.round(
+              calculatedIngredients.reduce((s, i) => s + i.finalProductConcentrationPercent, 0) || 10
+            )}
+            pureFragranceMl={pureMl}
+            carrierAlcoholMl={carrierMl}
+            compact
+          />
 
-            {/* Top Tier */}
-            <div className="p-2.5 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
-              <div className="flex items-center justify-between text-xs mb-1">
-                <span className="font-semibold text-yellow-300">Tầng Đầu ({tierTotals.top}%)</span>
-                <span className="text-[11px] font-mono text-yellow-400/80">Bay hơi nhanh • Sôi động</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {calculatedIngredients.slice(0, 2).map((ing) => (
-                  <span
-                    key={ing.slotKey}
-                    className="text-[11px] px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-200 border border-yellow-500/30"
-                  >
-                    {ing.name} ({ing.percentage}%)
-                  </span>
-                ))}
-              </div>
+          <div className="grid grid-cols-3 gap-2.5">
+            <div className="p-3 rounded-2xl bg-white/95 border border-[#FBCFE8] text-center">
+              <Clock className="w-4 h-4 text-[#DB2777] mx-auto mb-1" />
+              <span className="text-[10px] font-bold text-[#5C6B5F] block">Lưu hương</span>
+              <span className="text-xs font-bold text-[#2B342D]">{longevityText}</span>
             </div>
 
-            {/* Heart Tier */}
-            <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/30">
-              <div className="flex items-center justify-between text-xs mb-1">
-                <span className="font-semibold text-rose-300">Tầng Giữa ({tierTotals.heart}%)</span>
-                <span className="text-[11px] font-mono text-rose-400/80">Linh hồn mùi hương • Nồng nàn</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {calculatedIngredients.slice(2, 4).map((ing) => (
-                  <span
-                    key={ing.slotKey}
-                    className="text-[11px] px-2 py-0.5 rounded bg-rose-500/20 text-rose-200 border border-rose-500/30"
-                  >
-                    {ing.name} ({ing.percentage}%)
-                  </span>
-                ))}
-              </div>
+            <div className="p-3 rounded-2xl bg-white/95 border border-[#BBF7D0] text-center">
+              <Wind className="w-4 h-4 text-[#16A34A] mx-auto mb-1" />
+              <span className="text-[10px] font-bold text-[#5C6B5F] block">Tỏa hương</span>
+              <span className="text-xs font-bold text-[#2B342D]">{sillageText}</span>
             </div>
 
-            {/* Base Tier */}
-            <div className="p-2.5 rounded-lg bg-amber-600/10 border border-amber-600/30">
-              <div className="flex items-center justify-between text-xs mb-1">
-                <span className="font-semibold text-amber-300">Tầng Cuối ({tierTotals.base}%)</span>
-                <span className="text-[11px] font-mono text-amber-400/80">Lớp nền neo giữ • Sâu lắng</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {calculatedIngredients.slice(4, 6).map((ing) => (
-                  <span
-                    key={ing.slotKey}
-                    className="text-[11px] px-2 py-0.5 rounded bg-amber-600/20 text-amber-200 border border-amber-600/30"
-                  >
-                    {ing.name} ({ing.percentage}%)
-                  </span>
-                ))}
-              </div>
+            <div className="p-3 rounded-2xl bg-white/95 border border-[#FDE68A] text-center">
+              <ThermometerSun className="w-4 h-4 text-[#D97706] mx-auto mb-1" />
+              <span className="text-[10px] font-bold text-[#5C6B5F] block">Mùa hợp</span>
+              <span className="text-xs font-bold text-[#2B342D]">
+                {seasonName.split('(')[0].trim()}
+              </span>
             </div>
           </div>
 
-          {/* Performance cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-              <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
-                <Clock className="w-4 h-4 text-amber-400" />
-                <span>Dự Đoán Độ Lưu Hương</span>
-              </div>
-              <p className="text-sm font-semibold text-slate-200">{longevityText}</p>
-            </div>
-
-            <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-              <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
-                <Wind className="w-4 h-4 text-cyan-400" />
-                <span>Dự Đoán Độ Tỏa Hương</span>
-              </div>
-              <p className="text-sm font-semibold text-slate-200">{sillageText}</p>
-            </div>
-
-            <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-              <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
-                <ThermometerSun className="w-4 h-4 text-rose-400" />
-                <span>Mùa Phù Hợp Dự Kiến</span>
-              </div>
-              <p className="text-sm font-semibold text-slate-200">{seasonName}</p>
-            </div>
-          </div>
-
-          <div className="p-3 rounded-xl bg-amber-950/20 border border-amber-500/30 flex items-start gap-2 text-[11px] text-amber-200/90">
-            <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-            <span>
-              <strong>Lưu ý Khoa học:</strong> Biểu đồ nhóm hương, độ lưu hương và độ tỏa hương trên đây là <strong>dự đoán lý thuyết</strong> dựa trên tỉ lệ phần trăm và áp suất hơi của các thành phần, <strong>không phải kết quả thực nghiệm đã được chứng minh</strong>. Cần pha chế mẫu thử và đánh giá cảm quan thực tế để kiểm chứng.
-            </span>
-          </div>
+          <SpringAccordion
+            title="Lưu ý khoa học về dự đoán"
+            icon={<Info className="w-4 h-4 text-[#D97706]" />}
+            tone="butter"
+          >
+            <p className="leading-relaxed">
+              Biểu đồ nhóm hương, độ lưu hương và tỏa hương là <strong>dự đoán lý thuyết</strong> dựa trên tỉ lệ phần trăm và áp suất hơi của từng thành phần. Cần pha mẫu thử thực tế để kiểm chứng.
+            </p>
+          </SpringAccordion>
         </div>
       </div>
     </div>

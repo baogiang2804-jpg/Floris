@@ -1,6 +1,7 @@
 import React from 'react';
-import { Flower2, Sun, CloudRain, Snowflake, Sparkles } from 'lucide-react';
-import { SEASONAL_TEMPLATES, SeasonalTemplate } from '../data/perfumeData';
+import { Sparkles, Info } from 'lucide-react';
+import { SEASONAL_TEMPLATES } from '../data/perfumeData';
+import { SpringAccordion } from './SpringAccordion';
 
 interface SeasonalSelectorProps {
   selectedSeason: 'spring' | 'summer' | 'autumn' | 'winter';
@@ -18,120 +19,126 @@ export const SeasonalSelector: React.FC<SeasonalSelectorProps> = ({
   const seasonsList = [
     {
       key: 'spring' as const,
-      label: 'Mùa Xuân (Spring)',
-      tag: 'Tươi mới • Hoa cỏ',
-      icon: Flower2,
-      color: 'from-pink-500/20 to-emerald-500/20 border-pink-500/40 text-pink-300',
-      activeBorder: 'border-pink-500 shadow-pink-500/10',
-      iconColor: 'text-pink-400',
+      emoji: '🌸',
+      label: 'Mùa Xuân',
+      tag: 'Hoa cỏ · Dịu nhẹ',
+      cardBg: 'from-[#FFF1F5] to-[#ECFDF3]',
+      activeBorder: 'border-[#F472B6] ring-2 ring-[#FBCFE8]',
+      badgeClass: 'bg-[#FCE7F3] text-[#BE185D] border-[#F9A8D4]',
     },
     {
       key: 'summer' as const,
-      label: 'Mùa Hè (Summer)',
-      tag: 'Sảng khoái • Cam chanh',
-      icon: Sun,
-      color: 'from-amber-500/20 to-cyan-500/20 border-amber-500/40 text-amber-300',
-      activeBorder: 'border-amber-400 shadow-amber-500/10',
-      iconColor: 'text-amber-400',
+      emoji: '🍋',
+      label: 'Mùa Hè',
+      tag: 'Cam chanh · Mát',
+      cardBg: 'from-[#FEFCE8] to-[#ECFDF3]',
+      activeBorder: 'border-[#FACC15] ring-2 ring-[#FEF08A]',
+      badgeClass: 'bg-[#FEF9C3] text-[#854D0E] border-[#FDE047]',
     },
     {
       key: 'autumn' as const,
-      label: 'Mùa Thu (Autumn)',
-      tag: 'Gỗ ấm • Hoài niệm',
-      icon: CloudRain,
-      color: 'from-orange-500/20 to-amber-700/20 border-orange-500/40 text-orange-300',
-      activeBorder: 'border-orange-500 shadow-orange-500/10',
-      iconColor: 'text-orange-400',
+      emoji: '🍂',
+      label: 'Mùa Thu',
+      tag: 'Gỗ ấm · Dịu dàng',
+      cardBg: 'from-[#FFF7ED] to-[#FEF3C7]',
+      activeBorder: 'border-[#FB923C] ring-2 ring-[#FED7AA]',
+      badgeClass: 'bg-[#FFEDD5] text-[#9A3412] border-[#FDBA74]',
     },
     {
       key: 'winter' as const,
-      label: 'Mùa Đông (Winter)',
-      tag: 'Hổ phách • Gỗ quý',
-      icon: Snowflake,
-      color: 'from-blue-500/20 to-indigo-500/20 border-blue-500/40 text-blue-300',
-      activeBorder: 'border-blue-400 shadow-blue-500/10',
-      iconColor: 'text-blue-400',
+      emoji: '❄️',
+      label: 'Mùa Đông',
+      tag: 'Vani · Hổ phách',
+      cardBg: 'from-[#FDF2F8] to-[#FFFBEB]',
+      activeBorder: 'border-[#F472B6] ring-2 ring-[#FCE7F3]',
+      badgeClass: 'bg-[#FCE7F3] text-[#9D174D] border-[#FBCFE8]',
     },
   ];
 
   return (
-    <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 sm:p-6 backdrop-blur-sm shadow-xl">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-        <div>
-          <span className="text-xs font-mono uppercase tracking-wider text-amber-400/90 font-semibold">
-            Bước 1: Bối Cảnh Khí Hậu
+    <div className="spring-card p-5 sm:p-6 space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span className="px-3 py-1 rounded-full bg-[#FCE7F3] text-[#BE185D] text-xs font-bold border border-[#FBCFE8] whitespace-nowrap">
+            Bước 1 · Chọn mùa
           </span>
-          <h2 className="text-lg font-serif font-bold text-slate-100">
-            Chọn Mùa & Định Hướng Nốt Hương
+          <h2 className="text-lg font-bold text-[#2B342D]">
+            Bối cảnh hương thơm
           </h2>
         </div>
 
         <button
           onClick={onApplySeasonalTemplate}
           type="button"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-medium border border-amber-500/30 transition-all self-start sm:self-auto"
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-[#ECFDF3] hover:bg-[#DCFCE7] text-[#15803D] text-xs font-bold border border-[#86EFAC] transition-all self-start sm:self-auto active:scale-95"
         >
-          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-          <span>Tải công thức mẫu {currentTemplate.title}</span>
+          <Sparkles className="w-3.5 h-3.5 text-[#16A34A]" />
+          <span>Nạp mẫu {currentTemplate.title.split('(')[0].trim()}</span>
         </button>
       </div>
 
-      {/* Grid of Season Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
+      {/* Visual Season Cards (Emoji + Short Title + 2-word tag) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {seasonsList.map((item) => {
           const isSelected = selectedSeason === item.key;
-          const Icon = item.icon;
 
           return (
             <button
               key={item.key}
               type="button"
               onClick={() => onSelectSeason(item.key)}
-              className={`p-3.5 sm:p-4 rounded-xl text-left border transition-all relative overflow-hidden flex flex-col justify-between ${
+              className={`p-4 rounded-3xl text-left border-2 transition-all flex flex-col justify-between gap-3 bg-gradient-to-br ${item.cardBg} ${
                 isSelected
-                  ? `bg-slate-800/90 ${item.activeBorder} shadow-lg ring-1 ring-amber-400/30`
-                  : 'bg-slate-950/40 border-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-200'
+                  ? `${item.activeBorder} shadow-md scale-[1.01]`
+                  : 'border-[#F3DCE4]/80 opacity-85 hover:opacity-100 hover:border-[#F9A8D4]'
               }`}
             >
-              <div className="flex items-center justify-between mb-2">
-                <div
-                  className={`w-9 h-9 rounded-lg flex items-center justify-center bg-slate-900/80 border border-slate-800 ${item.iconColor}`}
-                >
-                  <Icon className="w-5 h-5" />
-                </div>
+              <div className="flex items-center justify-between">
+                <span className="w-11 h-11 rounded-2xl bg-white/90 border border-white flex items-center justify-center text-2xl shadow-xs">
+                  {item.emoji}
+                </span>
                 {isSelected && (
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-400 border border-amber-400/20">
+                  <span
+                    className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${item.badgeClass}`}
+                  >
                     Đang chọn
                   </span>
                 )}
               </div>
 
               <div>
-                <p className={`font-medium text-sm ${isSelected ? 'text-white' : 'text-slate-300'}`}>
-                  {item.label}
-                </p>
-                <p className="text-xs text-slate-500 mt-0.5">{item.tag}</p>
+                <p className="font-bold text-sm sm:text-base text-[#2B342D]">{item.label}</p>
+                <p className="text-xs font-semibold text-[#5C6B5F] mt-0.5">{item.tag}</p>
               </div>
             </button>
           );
         })}
       </div>
 
-      {/* Seasonal guide snippet */}
-      <div className="p-3.5 rounded-xl bg-slate-950/50 border border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-        <p className="text-slate-300 leading-relaxed">
-          <strong className="text-amber-400">{currentTemplate.title}:</strong>{' '}
-          {currentTemplate.description}
-        </p>
-
-        <div className="flex items-center gap-2 font-mono shrink-0 text-[11px] text-slate-400 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800">
-          <span>Tỷ lệ vàng gợi ý:</span>
-          <span className="text-amber-300 font-semibold">{currentTemplate.recommendedTiers.top}% Đầu</span>
-          <span>•</span>
-          <span className="text-rose-300 font-semibold">{currentTemplate.recommendedTiers.heart}% Giữa</span>
-          <span>•</span>
-          <span className="text-emerald-300 font-semibold">{currentTemplate.recommendedTiers.base}% Cuối</span>
+      {/* Visual Tier Ratio Pill Bar + Collapsible Explanation Accordion */}
+      <div className="space-y-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-2xl bg-[#FFFDF8] border border-[#F3DCE4] text-xs">
+          <span className="font-bold text-[#2B342D]">Tỷ lệ vàng gợi ý</span>
+          <div className="flex items-center gap-2 font-mono font-bold">
+            <span className="px-2.5 py-0.5 rounded-full bg-[#FEF9C3] text-[#854D0E] border border-[#FDE047]">
+              Đầu {currentTemplate.recommendedTiers.top}%
+            </span>
+            <span className="px-2.5 py-0.5 rounded-full bg-[#FCE7F3] text-[#BE185D] border border-[#F9A8D4]">
+              Giữa {currentTemplate.recommendedTiers.heart}%
+            </span>
+            <span className="px-2.5 py-0.5 rounded-full bg-[#DCFCE7] text-[#15803D] border border-[#86EFAC]">
+              Cuối {currentTemplate.recommendedTiers.base}%
+            </span>
+          </div>
         </div>
+
+        <SpringAccordion
+          title={`Xem ghi chú ${currentTemplate.title}`}
+          icon={<Info className="w-4 h-4 text-[#DB2777]" />}
+          tone="sakura"
+        >
+          <p className="leading-relaxed">{currentTemplate.description}</p>
+        </SpringAccordion>
       </div>
     </div>
   );

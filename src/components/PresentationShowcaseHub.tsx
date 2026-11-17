@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   FlaskConical,
-  CheckCircle2,
   Download,
   Copy,
   Check,
@@ -15,14 +14,14 @@ import {
   Send,
   RefreshCw,
   ExternalLink,
-  ChevronDown,
-  ChevronUp,
+  BookOpen,
+  Microscope,
+  ClipboardCheck,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   EXPERIMENTAL_BASELINE_FORMULA,
   GROUP_LAB_REPORT_DATA,
-  FLORIS_IMAGES,
 } from '../data/perfumeData';
 import {
   CalculatedIngredient,
@@ -36,6 +35,9 @@ import {
   safeRequestTTS,
   speakWithBrowserSynthesis,
 } from '../utils/aiPerfumeEngine';
+import { SpringPerfumeBottleSVG } from './SpringPerfumeBottleSVG';
+import { ScentFamilyVisualBadge } from './SpringDecorations';
+import { SpringAccordion } from './SpringAccordion';
 
 interface PresentationShowcaseHubProps {
   seasonKey: 'spring' | 'summer' | 'autumn' | 'winter';
@@ -73,47 +75,52 @@ interface PresentationShowcaseHubProps {
 const PRESET_AI_QUESTIONS = [
   {
     id: 'fresher',
+    emoji: '🌼',
+    tag: 'Mẫu B · Tươi',
     label: 'Tôi muốn mùi nước hoa tươi mát hơn.',
-    note: 'Tăng nốt Hoa nhài ở tầng đầu (tương tự định hướng Mẫu B)',
   },
   {
     id: 'fruity',
+    emoji: '🍑',
+    tag: 'Ngọt dịu',
     label: 'Tôi muốn hương quả đào ngọt dịu rõ hơn.',
-    note: 'Tăng nốt Đào ở tầng giữa để mùi hương mọng nước, trẻ trung',
   },
   {
     id: 'less_strong',
+    emoji: '🫧',
+    tag: 'Thanh khiết',
     label: 'Tôi muốn giảm cảm giác nồng, mùi thanh khiết nhẹ nhàng.',
-    note: 'Cân bằng nốt hương, hạ bớt độ ngọt ấm, tăng độ trong trẻo',
   },
   {
     id: 'sweeter',
+    emoji: '🍦',
+    tag: 'Mẫu C · Lưu lâu',
     label: 'Tôi muốn tăng độ ngọt ấm và lưu hương lâu hơn.',
-    note: 'Tăng Xạ hương trắng và Vanilla ở tầng cuối (định hướng Mẫu C)',
   },
   {
     id: 'keep_signature',
+    emoji: '🌸',
+    tag: 'Cân bằng',
     label: 'Tôi muốn thay đổi tỉ lệ nhưng vẫn giữ đặc trưng Floris.',
-    note: 'Cân đối 4 nốt: Nhài, Đào, Xạ hương trắng, Vanilla',
   },
 ];
 
 const CHEMISTRY_KNOWLEDGE_CHIPS = [
   {
-    title: 'Độ bay hơi & phân tử khối (M)',
-    text: 'Các hydrocarbon monoterpene ở tầng đầu (như D-Limonene C₁₀H₁₆, M=136 g/mol) không phân cực, khối lượng phân tử nhỏ nên lực tương tác liên phân tử yếu, áp suất hơi cao và tốc độ bay hơi nhanh ngay khi xịt.',
+    title: 'Độ bay hơi & M',
+    text: 'Monoterpene ở tầng đầu (Benzyl acetate, Linalool) có phân tử khối nhỏ nên áp suất hơi cao và bay hơi nhanh ngay khi xịt.',
   },
   {
-    title: 'Nhóm chức -OH & liên kết hydro ở tầng giữa',
-    text: 'Tinh dầu tầng giữa chứa các terpene alcohol và alcohol thơm (Phenylethyl alcohol, Linalool, Geraniol) có nhóm chức -OH phân cực tạo liên kết hydro với nhau và với dung môi Ethanol, giúp bay hơi chậm hơn tầng đầu và giữ hương ổn định 2–4 giờ.',
+    title: 'Liên kết Hydro (-OH)',
+    text: 'Nhóm -OH phân cực ở tầng giữa tạo liên kết hydro với Ethanol giúp giữ hương ổn định 2–4 giờ.',
   },
   {
-    title: 'Chất định hương (Fixative) & định luật Raoult',
-    text: 'Xạ hương trắng (vòng macrocyclic C₁₅–C₁₇, M≈250–270 g/mol) và Vanillin có áp suất hơi rất thấp. Theo định luật Raoult (P_i = x_i · P°_i), chúng làm giảm áp suất hơi riêng phần của các chất dễ bay hơi, giúp giữ mùi lâu hơn.',
+    title: 'Định luật Raoult',
+    text: 'Xạ hương trắng (M≈250–270 g/mol) và Vanillin có áp suất hơi rất thấp, ghìm giữ các phân tử nhẹ lưu hương lâu hơn.',
   },
   {
-    title: 'Phân biệt tỉ lệ hợp hương và nồng độ thành phẩm',
-    text: 'Tỉ lệ phối trộn trong cốt hương luôn có tổng bằng 100%, nhưng khi pha thành nước hoa hoàn chỉnh (EDP 20% trong Ethanol 95%), nồng độ thực tế của mỗi chất trong dung dịch bằng Tỉ lệ hợp hương × 20%. Giới hạn an toàn IFRA Cat. 4 được tính trên nồng độ thành phẩm này.',
+    title: 'Nồng độ IFRA Cat. 4',
+    text: 'Nồng độ thành phẩm (%) = Tỉ lệ hợp hương × Nồng độ dòng nước hoa / 100. Luôn đối chiếu chuẩn an toàn IFRA.',
   },
 ];
 
@@ -142,11 +149,8 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
   onOpenExperimentalWeb,
 }) => {
   const [isEditingLabNotes, setIsEditingLabNotes] = useState(false);
-  const [showMoreLabDetails, setShowMoreLabDetails] = useState(false);
   const [activeVariantCode, setActiveVariantCode] = useState<string>('Mẫu A - Gốc');
-  const [initialEvalState, setInitialEvalState] = useState(
-    EXPERIMENTAL_BASELINE_FORMULA.initialEvaluation
-  );
+  const [initialEvalState] = useState(EXPERIMENTAL_BASELINE_FORMULA.initialEvaluation);
 
   const handleLoadLabVariant = (variantId: string) => {
     if (variantId === 'sample_a_original') {
@@ -161,7 +165,7 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
           { slotKey: 'base2', newPercentage: 45 },
         ],
         'Floris — Mẫu A (Gốc)',
-        'Mẫu A - Gốc: Hoa nhài 1% (2 giọt), Đào 2% (4 giọt), Xạ hương trắng 2,5% (5 giọt), Vanilla 4,5% (9 giọt)'
+        'Mẫu A - Gốc: Nhài 1%, Đào 2%, Xạ hương trắng 2,5%, Vanilla 4,5%'
       );
     } else if (variantId === 'sample_b_fresher') {
       setActiveVariantCode('Mẫu B - Tươi hơn');
@@ -175,7 +179,7 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
           { slotKey: 'base2', newPercentage: 25 },
         ],
         'Floris — Mẫu B (Tươi hơn)',
-        'Mẫu B - Tươi hơn: Hoa nhài 6% (12 giọt), Đào 4% (8 giọt), Xạ hương trắng 5% (10 giọt), Vanilla 5% (10 giọt)'
+        'Mẫu B - Tươi hơn: Nhài 6%, Đào 4%, Xạ hương trắng 5%, Vanilla 5%'
       );
     } else if (variantId === 'sample_c_sweeter') {
       setActiveVariantCode('Mẫu C - Dịu/Ngọt hơn');
@@ -189,7 +193,7 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
           { slotKey: 'base2', newPercentage: 30 },
         ],
         'Floris — Mẫu C (Dịu/Ngọt hơn)',
-        'Mẫu C - Dịu/Ngọt hơn: Hoa nhài 4% (8 giọt), Đào 4% (8 giọt), Xạ hương trắng 6% (12 giọt), Vanilla 6% (12 giọt)'
+        'Mẫu C - Dịu/Ngọt hơn: Nhài 4%, Đào 4%, Xạ hương trắng 6%, Vanilla 6%'
       );
     }
   };
@@ -213,14 +217,14 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
     return {
       isReasonableRating: 'very_reasonable',
       isReasonableComment:
-        'Đề xuất của AI hợp lý vì đã điều chỉnh đúng nhóm nguyên liệu tạo nên sắc thái mùi mà người tham quan yêu cầu, đồng thời tổng tỉ lệ phối trộn được giữ đúng bằng 100%.',
+        'Đề xuất hợp lý vì điều chỉnh đúng nhóm nguyên liệu mục tiêu và giữ tổng tỉ lệ 100%.',
       chemistryExplanation:
-        'Giải thích theo Hóa học: Tinh dầu tầng đầu (Hoa nhài) giàu Benzyl acetate và Linalool có áp suất hơi cao, lan tỏa nhanh nét hoa thanh khiết. Tầng giữa (Đào) chứa γ-undecalactone tạo hương trái cây ngọt dịu, mọng nước. Tầng cuối (Xạ hương trắng, Vanilla) có phân tử khối lớn và áp suất hơi rất thấp, đóng vai trò chất định hương (fixative) làm giảm áp suất hơi riêng phần của các cấu tử nhẹ theo định luật Raoult.',
+        'Hương đầu (Hoa nhài) bay hơi nhanh tạo mở màn thanh khiết; tầng giữa (Đào) nối mạch dịu ngọt; tầng cuối (Xạ hương trắng, Vanilla) định hương theo định luật Raoult.',
       groupDecision: 'agree',
       groupDecisionReason:
-        'Nhóm đồng ý với tỉ lệ điều chỉnh cân đối giữa 4 nguyên liệu chính: Hoa nhài, Đào, Xạ hương trắng và Vanilla. Nhóm kiểm soát chặt chẽ dung môi Ethanol 90% và nước cất không quá 20 giọt để dung dịch không bị đục.',
+        'Nhóm đồng ý với tỉ lệ mới và giữ đúng dung môi Ethanol 90% + tối đa 20 giọt nước cất.',
       verificationExperimentPlan:
-        '1. Pha mẫu thử nghiệm quy mô 10,00 mL theo đúng số giọt chuẩn (1 giọt = 0,05 mL).\n2. Thử mùi trên que giấy thử ở 3 mốc thời gian: 15 phút đầu (tầng đầu hoa nhài), 2 giờ (tầng giữa đào) và sau 6 giờ (tầng cuối xạ hương - vanilla).\n3. Theo dõi độ trong suốt sau 24h, 48h và 72h ủ mẫu.',
+        'Pha mẫu thử 10,00 mL (1 giọt = 0,05 mL), đánh giá trên giấy thử ở 15 phút, 2 giờ, 6 giờ và kiểm tra độ trong sau 24h–72h.',
     };
   });
 
@@ -255,7 +259,7 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
   const handleRunAIConsultation = async (customPromptText?: string) => {
     const queryToUse = (customPromptText ?? userRequest).trim();
     if (!queryToUse) {
-      setAiError('Vui lòng chọn câu hỏi có sẵn hoặc nhập yêu cầu cải tiến mùi hương.');
+      setAiError('Hãy chọn gợi ý hoặc nhập yêu cầu của bạn.');
       return;
     }
     if (customPromptText) {
@@ -290,7 +294,7 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
         }));
       }
     } catch (err: any) {
-      setAiError(err?.message || 'Không thể kết nối với hệ thống phân tích.');
+      setAiError(err?.message || 'Không thể kết nối hệ thống phân tích.');
     } finally {
       setIsAnalyzing(false);
     }
@@ -329,7 +333,9 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
     try {
       const ttsResult = await safeRequestTTS(text);
       if (ttsResult.audioBase64) {
-        const audio = new Audio(`data:${ttsResult.mimeType || 'audio/wav'};base64,${ttsResult.audioBase64}`);
+        const audio = new Audio(
+          `data:${ttsResult.mimeType || 'audio/wav'};base64,${ttsResult.audioBase64}`
+        );
         audioPlayerRef.current = audio;
         audio.onended = () => setIsSpeaking(false);
         audio.onerror = () => {
@@ -367,39 +373,23 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
       studentEvaluation: studentEval,
     });
 
-    downloadCsvFile(
-      csv,
-      `bao_cao_thuc_nghiem_floris_${totalVolume}ml.csv`
-    );
+    downloadCsvFile(csv, `bao_cao_thuc_nghiem_floris_${totalVolume}ml.csv`);
   };
 
   const handleCopyPresentationReport = async () => {
     if (!aiResult) return;
     const lines = [
-      `BÁO CÁO THỰC NGHIỆM & THỬ NGHIỆM CẢI TIẾN NƯỚC HOA FLORIS`,
-      `• Công thức thực nghiệm gốc: ${perfumeName} (${seasonLabel})`,
-      `• Quy chuẩn pha chế: Chai ${totalVolume} mL | ${concentrationName} (${concentrationPercent}% cốt hương = ${pureFragranceMl} mL tinh dầu + ${carrierAlcoholMl} mL Ethanol 95%)`,
-      ``,
-      `1. Yêu cầu điều chỉnh mùi hương:`,
-      `"${userRequest}"`,
-      ``,
-      `2. So sánh công thức gốc và công thức đề xuất (${aiResult.proposedPerfumeName} - Tổng tỉ lệ = 100%):`,
+      `BÁO CÁO THỰC NGHIỆM NƯỚC HOA FLORIS`,
+      `• Công thức: ${perfumeName} (${seasonLabel})`,
+      `• Quy chuẩn: ${totalVolume} mL | ${concentrationName} (${concentrationPercent}%)`,
+      `• Yêu cầu: "${userRequest}"`,
+      `• Đề xuất AI (${aiResult.proposedPerfumeName}):`,
       ...(aiResult.comparisonItems || []).map((item: any) => {
         const sign = item.deltaPercentage > 0 ? '+' : '';
-        return `- [${item.tierLabel}] ${item.name}: Gốc ${item.oldPercentage}% (${item.oldFinalProductConcPercent}% thành phẩm) -> Đề xuất ${item.newPercentage}% (${item.newFinalProductConcPercent}% thành phẩm) [${sign}${item.deltaPercentage}%] | Lý do: ${item.reason}`;
+        return `- [${item.tierLabel}] ${item.name}: ${item.oldPercentage}% -> ${item.newPercentage}% (${sign}${item.deltaPercentage}%)`;
       }),
-      ``,
-      `3. Giả thuyết dự đoán sự thay đổi mùi hương (cần kiểm chứng thực nghiệm):`,
-      `- Tổng quan: ${aiResult.olfactoryPredictionHypothesis?.overallChange || aiResult.analysisSummary}`,
-      `- Tầng đầu (0-20p): ${aiResult.olfactoryPredictionHypothesis?.topStage || ''}`,
-      `- Tầng giữa (20p-3h): ${aiResult.olfactoryPredictionHypothesis?.heartStage || ''}`,
-      `- Tầng cuối (>3h): ${aiResult.olfactoryPredictionHypothesis?.baseStage || ''}`,
-      ``,
-      `4. Nhận xét & đánh giá Hóa học của nhóm:`,
-      `- Tính hợp lý: ${studentEval.isReasonableComment}`,
-      `- Giải thích Hóa học: ${studentEval.chemistryExplanation}`,
-      `- Quyết định của nhóm: ${studentEval.groupDecisionReason}`,
-      `- Phương án thực nghiệm kiểm chứng: ${studentEval.verificationExperimentPlan}`,
+      `• Nhận xét nhóm: ${studentEval.isReasonableComment}`,
+      `• Hóa học: ${studentEval.chemistryExplanation}`,
     ].join('\n');
 
     try {
@@ -411,28 +401,23 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
     }
   };
 
+  const activeItems = calculatedIngredients.filter((ing) => ing.percentage > 0);
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* =====================================================================
-          PHẦN 1: CÔNG THỨC NƯỚC HOA THỰC NGHIỆM BAN ĐẦU CỦA NHÓM
+          1. VISUAL BOTTLE & FORMULA OVERVIEW (Minimal Text, Visual-First)
          ===================================================================== */}
-      <section className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 sm:p-6 space-y-6">
-        {/* Header Báo Cáo Thực Hành */}
-        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 pb-4 border-b border-slate-800">
-          <div className="space-y-1">
-            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-              <span className="text-emerald-400 font-medium">01. Công thức thực nghiệm ban đầu</span>
-              <span aria-hidden="true">·</span>
-              <span>Chủ đề: {GROUP_LAB_REPORT_DATA.topic}</span>
-              <span aria-hidden="true">·</span>
-              <span>Mẫu đang chọn: {activeVariantCode}</span>
-            </div>
-            <h2 className="text-xl sm:text-2xl font-serif font-bold text-slate-100">
-              Phiếu thực hành nước hoa {GROUP_LAB_REPORT_DATA.productName} (Quy chuẩn 10,00 mL)
+      <section className="spring-card p-5 sm:p-6 space-y-5">
+        {/* Clean 1-Title + Micro Badge Header */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-4 border-b border-[#F6DCE5]">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span className="px-3 py-1 rounded-full bg-[#DCFCE7] text-[#15803D] text-xs font-bold border border-[#BBF7D0]">
+              Mẫu thực nghiệm
+            </span>
+            <h2 className="text-xl sm:text-2xl font-bold text-[#2B342D]">
+              {activeVariantCode} · {totalVolume} mL
             </h2>
-            <p className="text-xs sm:text-sm text-slate-400">
-              Định hướng mùi hương: <strong className="text-slate-200">{GROUP_LAB_REPORT_DATA.emotionalDirection}</strong> — đây là công thức gốc nhóm đã pha chế để làm cơ sở phân tích và điều chỉnh.
-            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -440,10 +425,10 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
               <button
                 type="button"
                 onClick={onOpenExperimentalWeb}
-                className="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs flex items-center gap-1.5 transition-colors whitespace-nowrap"
+                className="px-3.5 py-2 rounded-2xl bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-xs flex items-center gap-1.5 transition-colors whitespace-nowrap"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
-                <span>Chuyển sang Web riêng</span>
+                <span>Phiếu lab</span>
               </button>
             )}
 
@@ -451,109 +436,58 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
               <button
                 type="button"
                 onClick={onOpenExperimentalPopup}
-                className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium text-xs flex items-center gap-1.5 transition-colors whitespace-nowrap"
+                className="px-3.5 py-2 rounded-2xl bg-[#ECFDF3] hover:bg-[#DCFCE7] text-[#15803D] border border-[#86EFAC] font-bold text-xs flex items-center gap-1.5 transition-colors whitespace-nowrap"
               >
-                <FlaskConical className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Mở Pop-up</span>
+                <FlaskConical className="w-3.5 h-3.5" />
+                <span>Xem nhanh</span>
               </button>
             )}
 
             <button
               type="button"
               onClick={() => setShowQrPanel((prev) => !prev)}
-              className="px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-medium flex items-center gap-1.5 transition-colors whitespace-nowrap"
+              className="px-3 py-2 rounded-2xl bg-[#FFFDF0] hover:bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] text-xs font-bold flex items-center gap-1.5 transition-colors whitespace-nowrap"
             >
-              <QrCode className="w-3.5 h-3.5 text-amber-400" />
-              <span>{showQrPanel ? 'Ẩn mã QR' : 'Mã QR tương tác'}</span>
+              <QrCode className="w-3.5 h-3.5" />
+              <span>{showQrPanel ? 'Ẩn QR' : 'Mã QR'}</span>
             </button>
 
             <button
               type="button"
               onClick={onRestoreExperimentalBaseline}
-              className="px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-medium flex items-center gap-1.5 transition-colors whitespace-nowrap"
-              title="Đặt lại đúng công thức nước hoa thực nghiệm ban đầu của nhóm"
+              className="px-3 py-2 rounded-2xl bg-white hover:bg-[#FFF5F8] text-[#4A4D48] border border-[#F3DCE4] text-xs font-bold flex items-center gap-1.5 transition-colors whitespace-nowrap"
             >
-              <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
-              <span>Đặt lại mẫu gốc</span>
+              <RotateCcw className="w-3.5 h-3.5 text-[#DB2777]" />
+              <span>Mẫu gốc</span>
             </button>
           </div>
         </div>
 
         {/* Collapsible QR Code Panel */}
         {showQrPanel && (
-          <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
-            <div className="md:col-span-3 flex flex-col items-center">
-              <div className="p-3 bg-white rounded-xl border border-slate-700">
-                <QRCodeSVG
-                  value={qrShareUrl}
-                  size={136}
-                  bgColor="#FFFFFF"
-                  fgColor="#0F172A"
-                  level="M"
-                  includeMargin={false}
-                />
-              </div>
-              <span className="text-xs text-slate-400 mt-2">
-                Quét mã để mở trên điện thoại
-              </span>
+          <div className="p-4 rounded-3xl bg-[#FFFDF8] border border-[#FBCFE8] flex flex-col sm:flex-row items-center gap-5">
+            <div className="p-3 bg-white rounded-2xl border border-[#FBCFE8] shrink-0">
+              <QRCodeSVG
+                value={qrShareUrl}
+                size={128}
+                bgColor="#FFFFFF"
+                fgColor="#2B342D"
+                level="M"
+              />
             </div>
-            <div className="md:col-span-9 space-y-2">
-              <h3 className="text-base font-serif font-bold text-slate-100">
-                Chia sẻ công thức thực nghiệm qua mã QR
-              </h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Khi cô giáo hoặc các nhóm khác quét mã này bằng điện thoại, trang web sẽ mở đúng công thức hiện tại ({perfumeName}) để mọi người tự nhập câu hỏi và xem phương án điều chỉnh của AI.
-              </p>
-              <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-mono text-slate-400 truncate">
+            <div className="space-y-1.5 min-w-0 flex-1 text-center sm:text-left">
+              <h3 className="text-sm font-bold text-[#2B342D]">📱 Quét QR để mở trên điện thoại</h3>
+              <p className="text-xs text-[#5C6B5F] truncate font-mono bg-white px-3 py-1.5 rounded-xl border border-[#F3DCE4]">
                 {qrShareUrl}
-              </div>
+              </p>
             </div>
           </div>
         )}
 
-        {/* Tóm tắt 3 tầng hương & Chọn nhanh 3 mẫu thực nghiệm A, B, C kèm ảnh thật */}
-        <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800/90 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            {/* Ảnh chai mẫu đang chọn */}
-            <div className="relative w-14 h-18 rounded-lg overflow-hidden border border-slate-700 bg-slate-900 shrink-0 shadow-md">
-              <img
-                src={
-                  activeVariantCode.includes('Mẫu C')
-                    ? FLORIS_IMAGES.sampleC
-                    : activeVariantCode.includes('Mẫu B')
-                    ? FLORIS_IMAGES.sampleB
-                    : FLORIS_IMAGES.sampleA
-                }
-                alt={activeVariantCode}
-                className="w-full h-full object-cover object-center"
-                loading="lazy"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent flex items-end justify-center pb-0.5">
-                <span className="text-[9px] font-mono text-emerald-300 font-bold">10 mL</span>
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-300">
-                <span>
-                  <strong className="text-amber-300">Hương đầu:</strong> {GROUP_LAB_REPORT_DATA.olfactoryPyramidSummary.top}
-                </span>
-                <span aria-hidden="true" className="text-slate-600">·</span>
-                <span>
-                  <strong className="text-rose-300">Hương giữa:</strong> {GROUP_LAB_REPORT_DATA.olfactoryPyramidSummary.heart}
-                </span>
-                <span aria-hidden="true" className="text-slate-600">·</span>
-                <span>
-                  <strong className="text-emerald-300">Hương cuối:</strong> {GROUP_LAB_REPORT_DATA.olfactoryPyramidSummary.base}
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">
-                Đang nạp: <strong className="text-emerald-300">{activeVariantCode}</strong> (Quy chuẩn 1 giọt = 0,05 mL · Tổng thành phẩm 10,00 mL = 200 giọt).
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+        {/* Quick Sample Switcher Pills (A / B / C) */}
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-3xl bg-[#FFF5F8] border border-[#FBCFE8]">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-bold text-[#9D174D]">Chọn mẫu thử:</span>
             {GROUP_LAB_REPORT_DATA.threeExperimentalVariants.map((variant) => {
               const isSelected = activeVariantCode === variant.code;
               return (
@@ -561,390 +495,267 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
                   key={variant.id}
                   type="button"
                   onClick={() => handleLoadLabVariant(variant.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                  className={`px-3.5 py-1.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap ${
                     isSelected
-                      ? 'bg-amber-500 text-slate-950 font-semibold'
-                      : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800'
+                      ? 'bg-[#EC4899] text-white shadow-xs'
+                      : 'bg-white hover:bg-[#FCE7F3] text-[#4A4D48] border border-[#F3DCE4]'
                   }`}
                 >
-                  {isSelected ? `Đang chọn: ${variant.code}` : variant.code}
+                  {variant.code}
                 </button>
               );
             })}
           </div>
+
+          <span className="text-xs font-mono font-bold px-3 py-1 rounded-full bg-white text-[#15803D] border border-[#BBF7D0]">
+            Đầu {tierTotals.top}% · Giữa {tierTotals.heart}% · Cuối {tierTotals.base}%
+          </span>
         </div>
 
-        {/* BẢNG CÔNG THỨC NƯỚC HOA THỰC NGHIỆM GỐC (Hiển thị trực tiếp ngay khi mở ứng dụng) */}
-        <div className="space-y-2">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-slate-200">
-              Bảng thành phần nguyên liệu, tỉ lệ phối trộn và ghi nhận mùi hương thực tế
-            </h3>
-            <div className="flex items-center gap-2">
+        {/* Visual Showcase Grid: Interactive Perfume Bottle + Compact Ingredient Cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+          <div className="lg:col-span-6">
+            <SpringPerfumeBottleSVG
+              ingredients={calculatedIngredients}
+              totalVolume={totalVolume}
+              concentrationPercent={concentrationPercent}
+              pureFragranceMl={pureFragranceMl}
+              carrierAlcoholMl={carrierAlcoholMl}
+              perfumeName={perfumeName}
+            />
+          </div>
+
+          <div className="lg:col-span-6 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-[#2B342D]">
+                Thành phần đang phối ({activeItems.length} nốt)
+              </h3>
               <button
                 type="button"
                 onClick={() => setIsEditingLabNotes((prev) => !prev)}
-                className="text-xs px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 flex items-center gap-1.5 transition-colors"
+                className="text-xs px-3 py-1 rounded-full bg-white hover:bg-[#FFF5F8] text-[#9D174D] border border-[#FBCFE8] font-bold flex items-center gap-1"
               >
-                <Edit3 className="w-3.5 h-3.5 text-slate-400" />
-                <span>{isEditingLabNotes ? 'Xong ghi chú' : 'Sửa ghi chú quan sát'}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowMoreLabDetails((prev) => !prev)}
-                className="text-xs px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 flex items-center gap-1 transition-colors"
-              >
-                <span>{showMoreLabDetails ? 'Ẩn quy trình & dụng cụ' : 'Xem thêm dụng cụ & quy trình'}</span>
-                {showMoreLabDetails ? (
-                  <ChevronUp className="w-3.5 h-3.5" />
-                ) : (
-                  <ChevronDown className="w-3.5 h-3.5" />
-                )}
+                <Edit3 className="w-3 h-3" />
+                <span>{isEditingLabNotes ? 'Xong' : 'Sửa ghi chú'}</span>
               </button>
             </div>
-          </div>
 
-          <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/80">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-800 bg-slate-900/80 text-xs text-slate-400">
-                  <th className="py-3 px-4 font-medium">Nguyên liệu &amp; hợp chất chính</th>
-                  <th className="py-3 px-4 font-medium">Tầng hương</th>
-                  <th className="py-3 px-4 font-medium text-center">Tỉ lệ hợp hương</th>
-                  <th className="py-3 px-4 font-medium text-center">Nồng độ thành phẩm ({concentrationPercent}%)</th>
-                  <th className="py-3 px-4 font-medium">Đặc điểm mùi hương quan sát</th>
-                  <th className="py-3 px-4 font-medium">Giới hạn IFRA (Cat. 4)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/70 text-xs">
-                {calculatedIngredients.map((ing) => (
-                  <tr key={ing.slotKey} className="hover:bg-slate-900/40 transition-colors align-top">
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="w-2 h-2 rounded-full shrink-0"
-                          style={{ backgroundColor: ing.color }}
-                        />
-                        <span className="font-semibold text-slate-100 text-xs sm:text-sm">
-                          {ing.name}
-                        </span>
-                      </div>
-                      <span className="block text-[11px] text-slate-400 mt-0.5">
-                        {ing.scientificName} · {ing.scentFamily}
-                      </span>
-                      {ing.chemicalCompounds && (
-                        <p className="text-[11px] text-slate-400 mt-1 font-mono">
-                          {ing.chemicalCompounds}
-                        </p>
-                      )}
-                    </td>
-
-                    <td className="py-3 px-4">
-                      <span className="font-medium text-slate-200 block">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {activeItems.map((ing) => (
+                <div
+                  key={ing.slotKey}
+                  className="p-3.5 rounded-3xl bg-[#FFFDF8] border border-[#F3DCE4] space-y-2"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <span className="text-[10px] font-bold text-[#5C6B5F] uppercase block">
                         {ing.tierLabel}
                       </span>
-                      <p className="text-[11px] text-slate-400 mt-1 leading-snug max-w-[200px]">
-                        {ing.volatilityNote}
+                      <p className="text-sm font-bold text-[#2B342D] truncate">
+                        {ing.name.split('(')[0].trim()}
                       </p>
-                    </td>
+                    </div>
+                    <span className="font-mono text-sm font-extrabold text-[#BE185D] bg-[#FCE7F3] px-2.5 py-0.5 rounded-full shrink-0">
+                      {ing.percentage}%
+                    </span>
+                  </div>
 
-                    <td className="py-3 px-4 text-center font-mono">
-                      <span className="text-sm font-semibold text-amber-300">
-                        {ing.percentage}%
-                      </span>
-                      <span className="block text-[11px] text-slate-500 mt-0.5">
-                        trên 100% hương
-                      </span>
-                    </td>
+                  {/* Mini Progress Bar */}
+                  <div className="w-full h-2 rounded-full bg-[#FFF1F5] overflow-hidden">
+                    <div
+                      style={{ width: `${Math.min(100, ing.percentage * 2)}%` }}
+                      className="h-full rounded-full bg-gradient-to-r from-[#F472B6] to-[#FBBF24]"
+                    />
+                  </div>
 
-                    <td className="py-3 px-4 text-center font-mono">
-                      <span className="text-sm font-semibold text-slate-200">
-                        {ing.finalProductConcentrationPercent}%
-                      </span>
-                      <span className="block text-[11px] text-slate-400 mt-0.5">
-                        {ing.volumeMl} mL (~{ing.drops} giọt)
-                      </span>
-                    </td>
+                  <div className="flex items-center justify-between gap-2 text-[11px]">
+                    <ScentFamilyVisualBadge scentFamily={ing.scentFamily} name={ing.name} />
+                    <span className="font-mono font-bold text-[#15803D]">
+                      {ing.volumeMl} mL · {ing.drops} giọt
+                    </span>
+                  </div>
 
-                    <td className="py-3 px-4 max-w-xs">
-                      {isEditingLabNotes ? (
-                        <textarea
-                          rows={3}
-                          value={ing.observedLabNote || ''}
-                          onChange={(e) =>
-                            onUpdateSlotObservedNote(
-                              ing.slotKey as FormulaSlot['key'],
-                              e.target.value
-                            )
-                          }
-                          className="w-full p-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
-                        />
-                      ) : (
-                        <p className="text-xs text-slate-300 leading-relaxed">
-                          {ing.observedLabNote}
-                        </p>
-                      )}
-                    </td>
-
-                    <td className="py-3 px-4 max-w-xs">
-                      <span
-                        className={`text-xs font-mono font-medium block ${
-                          ing.isExceedingIfra ? 'text-amber-300' : 'text-emerald-400'
-                        }`}
-                      >
-                        Tối đa ≤ {ing.ifraMaxPercent}% thành phẩm
-                      </span>
-                      <p className="text-[11px] text-slate-400 mt-1 leading-snug">
-                        {ing.ifraTechnicalReference}
-                      </p>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="bg-slate-900/90 border-t border-slate-800 font-mono text-xs">
-                  <td className="py-3 px-4 font-sans font-semibold text-slate-200" colSpan={2}>
-                    Tổng cộng công thức ({totalVolume} mL thành phẩm: {pureFragranceMl} mL cốt hương + {carrierAlcoholMl} mL Ethanol 95%)
-                  </td>
-                  <td className="py-3 px-4 text-center font-semibold text-amber-300">
-                    {totalPercentage}%
-                  </td>
-                  <td className="py-3 px-4 text-center font-semibold text-slate-200">
-                    {concentrationPercent}% hương + {100 - concentrationPercent}% cồn
-                  </td>
-                  <td className="py-3 px-4 font-sans text-slate-400" colSpan={2}>
-                    Tỉ lệ 3 tầng: Đầu {tierTotals.top}% · Giữa {tierTotals.heart}% · Cuối {tierTotals.base}%
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
-
-        {/* Kết quả đánh giá sản phẩm ban đầu của nhóm */}
-        <div className="p-4 sm:p-5 rounded-xl bg-slate-950/70 border border-slate-800/90 space-y-3">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <h3 className="text-sm font-semibold text-slate-200">
-              Kết quả đánh giá mẫu thực nghiệm ban đầu của nhóm
-            </h3>
-            <span className="text-xs font-mono text-slate-400">
-              Đánh giá cảm quan: <strong className="text-emerald-400">{initialEvalState.panelScore}</strong>
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5 text-xs">
-            <div className="p-3.5 rounded-lg bg-slate-900/70 border border-slate-800/80 space-y-1">
-              <span className="text-slate-400 font-medium block">
-                1. Trạng thái dung dịch
-              </span>
-              <p className="text-slate-300 leading-relaxed">{initialEvalState.physicalState}</p>
-            </div>
-
-            <div className="p-3.5 rounded-lg bg-slate-900/70 border border-slate-800/80 space-y-1">
-              <span className="text-slate-400 font-medium block">
-                2. Diễn biến mùi theo thời gian
-              </span>
-              <p className="text-slate-300 leading-relaxed">{initialEvalState.scentEvolution}</p>
-            </div>
-
-            <div className="p-3.5 rounded-lg bg-slate-900/70 border border-slate-800/80 space-y-1">
-              <span className="text-emerald-400 font-medium block">
-                3. Ưu điểm ghi nhận
-              </span>
-              <p className="text-slate-300 leading-relaxed">{initialEvalState.strengths}</p>
-            </div>
-
-            <div className="p-3.5 rounded-lg bg-slate-900/70 border border-slate-800/80 space-y-1">
-              <span className="text-amber-300 font-medium block">
-                4. Điểm cần thử nghiệm cải tiến
-              </span>
-              <p className="text-slate-300 leading-relaxed">{initialEvalState.pointsToImprove}</p>
+                  {isEditingLabNotes && (
+                    <textarea
+                      rows={2}
+                      value={ing.observedLabNote || ''}
+                      onChange={(e) =>
+                        onUpdateSlotObservedNote(
+                          ing.slotKey as FormulaSlot['key'],
+                          e.target.value
+                        )
+                      }
+                      className="w-full p-2 rounded-xl bg-white border border-[#FBCFE8] text-xs text-[#2B342D]"
+                    />
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Mở rộng xem nhanh Dụng cụ, Quy trình 7 bước & An toàn ngay tại trang chính nếu muốn */}
-        {showMoreLabDetails && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pt-2 border-t border-slate-800">
-            <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
-              <h4 className="text-xs font-semibold text-slate-200">
-                Nguyên liệu &amp; dụng cụ thực hành
-              </h4>
-              <ul className="space-y-1.5 text-xs text-slate-400">
-                {GROUP_LAB_REPORT_DATA.materialsAndTools.map((item, i) => (
-                  <li key={i} className="flex items-start gap-2 leading-relaxed">
-                    <span className="text-slate-500">·</span>
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
+        {/* Click-to-Expand Accordions for Chemical Details, Lab Notes & 9-Step Procedure */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+          <SpringAccordion
+            title="Chi tiết hóa học & Giới hạn IFRA"
+            badge={`${activeItems.length} chất`}
+            icon={<Microscope className="w-4 h-4 text-[#DB2777]" />}
+            tone="sakura"
+          >
+            <div className="space-y-2.5">
+              {activeItems.map((ing) => (
+                <div key={ing.slotKey} className="p-2.5 rounded-2xl bg-white border border-[#F6DCE5]">
+                  <div className="flex items-center justify-between font-bold text-[#2B342D]">
+                    <span>{ing.name}</span>
+                    <span className="font-mono text-[#15803D]">
+                      IFRA ≤ {ing.ifraMaxPercent}% (Dùng: {ing.finalProductConcentrationPercent}%)
+                    </span>
+                  </div>
+                  {ing.chemicalCompounds && (
+                    <p className="font-mono text-[11px] text-[#9D174D] mt-1">{ing.chemicalCompounds}</p>
+                  )}
+                  {ing.volatilityNote && (
+                    <p className="text-[11px] text-[#5C6B5F] mt-0.5">{ing.volatilityNote}</p>
+                  )}
+                </div>
+              ))}
             </div>
+          </SpringAccordion>
 
-            <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
-              <h4 className="text-xs font-semibold text-slate-200">
-                Quy trình pha chế (10,00 mL)
-              </h4>
-              <ol className="space-y-1.5 text-xs text-slate-400">
+          <SpringAccordion
+            title="Đánh giá mẫu lab & Quy trình 9 bước"
+            badge="Thực hành"
+            icon={<BookOpen className="w-4 h-4 text-[#16A34A]" />}
+            tone="leaf"
+          >
+            <div className="space-y-3">
+              <div className="p-2.5 rounded-2xl bg-white border border-[#C8F0D4] space-y-1">
+                <p className="font-bold text-[#15803D]">Trạng thái &amp; Diễn biến mùi</p>
+                <p>{initialEvalState.physicalState}</p>
+                <p>{initialEvalState.scentEvolution}</p>
+              </div>
+              <ol className="space-y-1 pl-1">
                 {GROUP_LAB_REPORT_DATA.procedureSteps.map((stepText, i) => (
-                  <li key={i} className="flex items-start gap-2 leading-relaxed">
-                    <span className="font-mono text-slate-500 shrink-0">{i + 1}.</span>
-                    <span>{stepText}</span>
+                  <li key={i} className="leading-relaxed">
+                    {stepText}
                   </li>
                 ))}
               </ol>
             </div>
-
-            <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
-              <h4 className="text-xs font-semibold text-slate-200">
-                Quy tắc an toàn &amp; bảo quản
-              </h4>
-              <ul className="space-y-1.5 text-xs text-slate-400 max-h-56 overflow-y-auto pr-1">
-                {GROUP_LAB_REPORT_DATA.safetyRules.map((rule, i) => (
-                  <li key={i} className="flex items-start gap-2 leading-relaxed">
-                    <span className="font-mono text-slate-500 shrink-0">{i + 1}.</span>
-                    <span>{rule}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
+          </SpringAccordion>
+        </div>
       </section>
 
       {/* =====================================================================
-          PHẦN 2: AI TƯ VẤN CẢI TIẾN NƯỚC HOA
+          2. AI TƯ VẤN CẢI TIẾN HƯƠNG
          ===================================================================== */}
       <section
         id="ai-improvement-advisor-section"
-        className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 sm:p-6 space-y-5"
+        className="spring-card-butter p-5 sm:p-6 space-y-4"
       >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
-          <div>
-            <span className="text-xs text-amber-400 font-medium block">
-              02. Tương tác &amp; điều chỉnh công thức
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span className="px-3 py-1 rounded-full bg-white text-[#92400E] text-xs font-bold border border-[#FCD34D]">
+              AI điều chỉnh
             </span>
-            <h2 className="text-xl sm:text-2xl font-serif font-bold text-slate-100 mt-0.5">
-              AI tư vấn cải tiến mùi hương nước hoa
+            <h2 className="text-lg sm:text-xl font-bold text-[#2B342D]">
+              Thử biến tấu mùi hương
             </h2>
-            <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-              Chọn một yêu cầu gợi ý bên dưới hoặc tự nhập mong muốn thay đổi mùi hương để AI phân tích các thành phần hiện có và đề xuất tỉ lệ mới.
-            </p>
           </div>
 
           <button
             type="button"
             onClick={onOpenVoiceWidget}
-            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#2D6344] to-[#3B7A57] hover:from-[#245237] hover:to-[#2D6344] text-white text-xs font-semibold shadow-xs flex items-center gap-2 self-start sm:self-auto shrink-0 transition-all ring-2 ring-[#3B7A57]/20 group"
-            title="Mở trợ lý giọng nói Gemini Live để tương tác trực tiếp"
+            className="px-4 py-2 rounded-2xl bg-gradient-to-r from-[#EC4899] to-[#F472B6] hover:from-[#DB2777] hover:to-[#EC4899] text-white text-xs font-bold shadow-xs flex items-center gap-2 self-start sm:self-auto active:scale-95"
           >
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-200"></span>
-            </span>
-            <Mic className="w-3.5 h-3.5 text-emerald-100 group-hover:scale-110 transition-transform" />
-            <span>Gemini Live (Nói trực tiếp)</span>
+            <Mic className="w-3.5 h-3.5" />
+            <span>Nói trực tiếp (Gemini Live)</span>
           </button>
         </div>
 
-        {/* 5 Preset Questions */}
-        <div className="space-y-2">
-          <label className="text-xs font-medium text-slate-300 block">
-            Câu hỏi gợi ý (bấm để phân tích ngay):
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-            {PRESET_AI_QUESTIONS.map((qItem) => {
-              const isSelected = userRequest === qItem.label;
-              return (
-                <button
-                  key={qItem.id}
-                  type="button"
-                  disabled={isAnalyzing}
-                  onClick={() => handleRunAIConsultation(qItem.label)}
-                  className={`p-3.5 rounded-xl border text-left transition-colors ${
-                    isSelected
-                      ? 'bg-slate-800/90 border-amber-500/50 text-slate-100'
-                      : 'bg-slate-950/70 border-slate-800 hover:border-slate-700 text-slate-300'
-                  }`}
-                >
-                  <p className="text-xs sm:text-sm font-semibold leading-snug">
-                    “{qItem.label}”
-                  </p>
-                  <span className="block text-[11px] text-slate-400 mt-1">
-                    {qItem.note}
+        {/* Visual Preset Prompt Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+          {PRESET_AI_QUESTIONS.map((qItem) => {
+            const isSelected = userRequest === qItem.label;
+            return (
+              <button
+                key={qItem.id}
+                type="button"
+                disabled={isAnalyzing}
+                onClick={() => handleRunAIConsultation(qItem.label)}
+                className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between gap-2 ${
+                  isSelected
+                    ? 'bg-[#FFF1F5] border-[#EC4899] ring-2 ring-[#FBCFE8]'
+                    : 'bg-white hover:bg-[#FFFDF8] border-[#FDE68A]'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-lg">{qItem.emoji}</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FEF3C7] text-[#92400E]">
+                    {qItem.tag}
                   </span>
-                </button>
-              );
-            })}
-          </div>
+                </div>
+                <p className="text-xs font-bold text-[#2B342D] leading-snug">“{qItem.label}”</p>
+              </button>
+            );
+          })}
         </div>
 
-        {/* Custom Input Box */}
-        <div className="space-y-2 pt-1">
-          <label className="text-xs font-medium text-slate-300 block">
-            Hoặc tự nhập yêu cầu của bạn:
-          </label>
-          <div className="flex flex-col sm:flex-row gap-2.5">
-            <input
-              type="text"
-              value={userRequest}
-              onChange={(e) => setUserRequest(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleRunAIConsultation();
-                }
-              }}
-              placeholder="Ví dụ: Tôi muốn mùi nước hoa tươi mát hơn, giảm cảm giác ngọt ở tầng cuối..."
-              className="flex-1 px-4 py-2.5 rounded-lg bg-slate-950 border border-slate-800 text-sm text-slate-100 focus:outline-none focus:border-amber-500"
-            />
-            <button
-              type="button"
-              disabled={isAnalyzing}
-              onClick={() => handleRunAIConsultation()}
-              className="px-5 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-60 shrink-0 whitespace-nowrap"
-            >
-              {isAnalyzing ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Đang phân tích công thức...</span>
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4" />
-                  <span>Phân tích &amp; đề xuất công thức mới</span>
-                </>
-              )}
-            </button>
-          </div>
+        {/* Input Row */}
+        <div className="flex flex-col sm:flex-row gap-2.5">
+          <input
+            type="text"
+            value={userRequest}
+            onChange={(e) => setUserRequest(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleRunAIConsultation();
+              }
+            }}
+            placeholder="Nhập mong muốn chỉnh mùi (VD: Tươi mát hơn, giảm ngọt)..."
+            className="flex-1 px-4 py-2.5 rounded-2xl bg-white border-2 border-[#FDE68A] text-sm text-[#2B342D] focus:outline-none focus:border-[#EC4899]"
+          />
+          <button
+            type="button"
+            disabled={isAnalyzing}
+            onClick={() => handleRunAIConsultation()}
+            className="px-5 py-2.5 rounded-2xl bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 disabled:opacity-60 shrink-0 whitespace-nowrap"
+          >
+            {isAnalyzing ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                <span>Đang phân tích...</span>
+              </>
+            ) : (
+              <>
+                <Send className="w-4 h-4" />
+                <span>Đề xuất tỷ lệ mới</span>
+              </>
+            )}
+          </button>
         </div>
 
         {aiError && (
-          <div className="p-3.5 rounded-lg bg-rose-950/40 border border-rose-500/30 text-xs text-rose-200">
+          <div className="p-3 rounded-2xl bg-[#FFE4E6] border border-[#FDA4AF] text-xs font-bold text-[#9F1239]">
             {aiError}
           </div>
         )}
       </section>
 
       {/* =====================================================================
-          PHẦN 3: CÔNG THỨC AI ĐỀ XUẤT & BẢNG SO SÁNH ĐỐI CHIẾU
+          3. VISUAL AI COMPARISON & RATIO BARS
          ===================================================================== */}
       {aiResult && (
-        <section className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 sm:p-6 space-y-6">
-          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 pb-4 border-b border-slate-800">
-            <div className="space-y-1">
-              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-                <span className="text-amber-400 font-medium">03. Phương án điều chỉnh từ AI</span>
-                <span aria-hidden="true">·</span>
-                <span className="text-emerald-400 font-mono">
-                  Đã kiểm tra tổng tỉ lệ = {aiResult.validationReport?.validatedSum ?? 100}%
-                </span>
-              </div>
-              <h2 className="text-xl sm:text-2xl font-serif font-bold text-slate-100">
-                Công thức đề xuất: “{aiResult.proposedPerfumeName}”
+        <section className="spring-card-sakura p-5 sm:p-6 space-y-5">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-[#FBCFE8]">
+            <div>
+              <span className="px-2.5 py-0.5 rounded-full bg-white text-[#15803D] text-[11px] font-bold border border-[#BBF7D0]">
+                ✓ Chuẩn {aiResult.validationReport?.validatedSum ?? 100}%
+              </span>
+              <h2 className="text-lg sm:text-xl font-bold text-[#2B342D] mt-1">
+                Đề xuất: “{aiResult.proposedPerfumeName}”
               </h2>
-              <p className="text-xs sm:text-sm text-slate-400">
-                Yêu cầu: <strong className="text-slate-200">“{userRequest}”</strong> — {aiResult.analysisSummary}
-              </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -952,24 +763,15 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
                 type="button"
                 onClick={() =>
                   handleSpeakText(
-                    `${aiResult.spokenResponse}. Giả thuyết dự đoán mùi hương: ${
+                    `${aiResult.spokenResponse}. ${
                       aiResult.olfactoryPredictionHypothesis?.overallChange || ''
                     }`
                   )
                 }
-                className="px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-medium flex items-center gap-1.5 transition-colors whitespace-nowrap"
+                className="px-3.5 py-2 rounded-2xl bg-white hover:bg-[#FFF5F8] text-[#BE185D] border border-[#FBCFE8] text-xs font-bold flex items-center gap-1.5"
               >
-                {isSpeaking ? (
-                  <>
-                    <VolumeX className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Dừng đọc</span>
-                  </>
-                ) : (
-                  <>
-                    <Volume2 className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Nghe giọng đọc Gemini Live</span>
-                  </>
-                )}
+                {isSpeaking ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                <span>{isSpeaking ? 'Dừng' : 'Nghe AI'}</span>
               </button>
 
               <button
@@ -985,331 +787,140 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
                   );
                   setAppliedSuccess(true);
                 }}
-                className="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs flex items-center gap-1.5 transition-colors whitespace-nowrap"
+                className="px-4 py-2 rounded-2xl bg-gradient-to-r from-[#EC4899] to-[#F472B6] hover:from-[#DB2777] hover:to-[#EC4899] text-white font-bold text-xs flex items-center gap-1.5 shadow-xs"
               >
                 <Check className="w-3.5 h-3.5" />
-                <span>
-                  {appliedSuccess
-                    ? 'Đã nạp vào thanh trượt'
-                    : 'Áp dụng thử lên thanh trượt'}
-                </span>
+                <span>{appliedSuccess ? 'Đã nạp' : 'Áp dụng ngay'}</span>
               </button>
             </div>
           </div>
 
-          {/* Side-by-side comparison table */}
-          <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/80">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-800 bg-slate-900/80 text-xs text-slate-400">
-                  <th className="py-3 px-4 font-medium">Nguyên liệu &amp; tầng hương</th>
-                  <th className="py-3 px-4 font-medium text-center">Công thức gốc</th>
-                  <th className="py-3 px-4 font-medium text-center text-amber-300">
-                    Công thức AI đề xuất
-                  </th>
-                  <th className="py-3 px-4 font-medium text-center">Thay đổi (Δ%)</th>
-                  <th className="py-3 px-4 font-medium">Lý do điều chỉnh</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/70 text-xs">
-                {(aiResult.comparisonItems || []).map((item: any) => {
-                  const delta = item.deltaPercentage || 0;
-                  const deltaTone =
-                    delta > 0
-                      ? 'text-emerald-400'
-                      : delta < 0
-                      ? 'text-rose-400'
-                      : 'text-slate-500';
+          {/* Visual Proportion Comparison Bars */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {(aiResult.comparisonItems || [])
+              .filter((item: any) => item.oldPercentage > 0 || item.newPercentage > 0)
+              .map((item: any) => {
+                const delta = item.deltaPercentage || 0;
+                return (
+                  <div
+                    key={item.slotKey}
+                    className="p-3.5 rounded-3xl bg-white border border-[#FBCFE8] space-y-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold text-[#2B342D] truncate">
+                        {item.name.split('(')[0].trim()}
+                      </span>
+                      <span
+                        className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-full ${
+                          delta > 0
+                            ? 'bg-[#DCFCE7] text-[#15803D]'
+                            : delta < 0
+                            ? 'bg-[#FFE4E6] text-[#BE123C]'
+                            : 'bg-[#F3F4F6] text-[#5C6B5F]'
+                        }`}
+                      >
+                        {delta > 0 ? `+${delta}%` : `${delta}%`}
+                      </span>
+                    </div>
 
-                  return (
-                    <tr key={item.slotKey} className="hover:bg-slate-900/40 transition-colors align-top">
-                      <td className="py-3 px-4">
-                        <span className="text-[11px] text-slate-400 block">
-                          {item.tierLabel}
-                        </span>
-                        <p className="font-semibold text-slate-100 mt-0.5 text-xs sm:text-sm">
-                          {item.name}
-                        </p>
-                        <span className="text-[11px] text-slate-500">{item.scentFamily}</span>
-                      </td>
+                    <div className="space-y-1 text-[11px] font-mono">
+                      <div className="flex items-center gap-2">
+                        <span className="w-8 text-[#5C6B5F]">Gốc</span>
+                        <div className="flex-1 h-2.5 rounded-full bg-[#F3F4F6] overflow-hidden">
+                          <div
+                            style={{ width: `${Math.min(100, item.oldPercentage * 2)}%` }}
+                            className="h-full bg-[#9CA3AF] rounded-full"
+                          />
+                        </div>
+                        <span className="w-9 text-right">{item.oldPercentage}%</span>
+                      </div>
 
-                      {/* Original Formula */}
-                      <td className="py-3 px-4 text-center font-mono">
-                        <span className="text-sm font-semibold text-slate-200">
-                          {item.oldPercentage}%
-                        </span>
-                        <span className="block text-[11px] text-slate-400">
-                          Thành phẩm: {item.oldFinalProductConcPercent ?? Number(((item.oldPercentage * concentrationPercent) / 100).toFixed(2))}%
-                        </span>
-                        <span className="block text-[11px] text-slate-500">
-                          ({item.oldVolumeMl} mL)
-                        </span>
-                      </td>
-
-                      {/* AI Proposed Formula */}
-                      <td className="py-3 px-4 text-center font-mono bg-slate-900/40">
-                        <span className="text-sm font-semibold text-amber-300">
+                      <div className="flex items-center gap-2">
+                        <span className="w-8 text-[#BE185D] font-bold">Mới</span>
+                        <div className="flex-1 h-2.5 rounded-full bg-[#FCE7F3] overflow-hidden">
+                          <div
+                            style={{ width: `${Math.min(100, item.newPercentage * 2)}%` }}
+                            className="h-full bg-[#EC4899] rounded-full"
+                          />
+                        </div>
+                        <span className="w-9 text-right font-bold text-[#BE185D]">
                           {item.newPercentage}%
                         </span>
-                        <span className="block text-[11px] text-slate-300">
-                          Thành phẩm: {item.newFinalProductConcPercent ?? Number(((item.newPercentage * concentrationPercent) / 100).toFixed(2))}%
-                        </span>
-                        <span className="block text-[11px] text-slate-400">
-                          ({item.newVolumeMl} mL · ~{item.newDrops} giọt)
-                        </span>
-                      </td>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
 
-                      {/* Percentage Change Delta */}
-                      <td className="py-3 px-4 text-center font-mono">
-                        <span className={`font-semibold text-xs ${deltaTone}`}>
-                          {delta > 0 ? `+${delta}%` : `${delta}%`}
-                        </span>
-                      </td>
-
-                      {/* Reason */}
-                      <td className="py-3 px-4 text-slate-300 leading-relaxed max-w-md">
-                        {item.reason}
-                      </td>
+          {/* Click-to-Expand Detailed Hypothesis & Comparison Table */}
+          <SpringAccordion
+            title="Xem chi tiết bảng đối chiếu & giả thuyết mùi"
+            badge="Hóa học"
+            icon={<ClipboardCheck className="w-4 h-4 text-[#DB2777]" />}
+            tone="cream"
+          >
+            <div className="space-y-3">
+              <div className="overflow-x-auto rounded-2xl border border-[#F3DCE4]">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-[#FFF5F8] text-[#9D174D] font-bold">
+                    <tr>
+                      <th className="py-2.5 px-3">Nguyên liệu</th>
+                      <th className="py-2.5 px-3 text-center">Gốc</th>
+                      <th className="py-2.5 px-3 text-center">Mới</th>
+                      <th className="py-2.5 px-3">Lý do điều chỉnh</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr className="bg-slate-900/90 border-t border-slate-800 font-mono text-xs">
-                  <td className="py-3 px-4 font-sans font-semibold text-slate-200">
-                    Tổng tỉ lệ hợp hương (kiểm tra tự động = 100%)
-                  </td>
-                  <td className="py-3 px-4 text-center font-semibold text-slate-300">
-                    {totalPercentage}% ({tierTotals.top}/{tierTotals.heart}/{tierTotals.base}%)
-                  </td>
-                  <td className="py-3 px-4 text-center font-semibold text-emerald-400">
-                    {aiResult.validationReport?.validatedSum ?? 100}% ({aiResult.newTierTotals?.top}/{aiResult.newTierTotals?.heart}/{aiResult.newTierTotals?.base}%)
-                  </td>
-                  <td className="py-3 px-4 text-center text-slate-400">0%</td>
-                  <td className="py-3 px-4 font-sans text-slate-400">
-                    Tổng 6 nguyên liệu giữ nguyên {pureFragranceMl} mL cốt hương trong {totalVolume} mL thành phẩm.
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          {/* OLFACTORY CHANGE PREDICTION (HYPOTHESIS) */}
-          <div className="p-4 sm:p-5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-3.5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
-              <h3 className="text-base font-serif font-bold text-slate-100">
-                Dự đoán sự thay đổi về mùi hương (Giả thuyết của AI)
-              </h3>
-              <span className="text-xs text-amber-300">
-                Lưu ý: Đây là giả thuyết lý thuyết, chưa phải kết quả thực nghiệm đã chứng minh
-              </span>
-            </div>
-
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-              {aiResult.olfactoryPredictionHypothesis?.overallChange || aiResult.analysisSummary}
-            </p>
-
-            {aiResult.olfactoryPredictionHypothesis && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 text-xs">
-                <div className="p-3.5 rounded-lg bg-slate-900/70 border border-slate-800/90 space-y-1">
-                  <span className="font-medium text-amber-300 block">
-                    Tầng đầu (0 – 25 phút)
-                  </span>
-                  <p className="text-slate-300 leading-relaxed">
-                    {aiResult.olfactoryPredictionHypothesis.topStage}
-                  </p>
-                </div>
-                <div className="p-3.5 rounded-lg bg-slate-900/70 border border-slate-800/90 space-y-1">
-                  <span className="font-medium text-rose-300 block">
-                    Tầng giữa (25 phút – 3 giờ)
-                  </span>
-                  <p className="text-slate-300 leading-relaxed">
-                    {aiResult.olfactoryPredictionHypothesis.heartStage}
-                  </p>
-                </div>
-                <div className="p-3.5 rounded-lg bg-slate-900/70 border border-slate-800/90 space-y-1">
-                  <span className="font-medium text-emerald-300 block">
-                    Tầng cuối (&gt; 3 giờ)
-                  </span>
-                  <p className="text-slate-300 leading-relaxed">
-                    {aiResult.olfactoryPredictionHypothesis.baseStage}
-                  </p>
-                </div>
+                  </thead>
+                  <tbody className="divide-y divide-[#F6DCE5]">
+                    {(aiResult.comparisonItems || []).map((item: any) => (
+                      <tr key={item.slotKey}>
+                        <td className="py-2 px-3 font-bold text-[#2B342D]">{item.name}</td>
+                        <td className="py-2 px-3 text-center font-mono">
+                          {item.oldPercentage}% ({item.oldVolumeMl} mL)
+                        </td>
+                        <td className="py-2 px-3 text-center font-mono font-bold text-[#BE185D]">
+                          {item.newPercentage}% ({item.newVolumeMl} mL)
+                        </td>
+                        <td className="py-2 px-3 text-[#4A4D48]">{item.reason}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
-          </div>
+
+              {aiResult.olfactoryPredictionHypothesis && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                  <div className="p-3 rounded-2xl bg-[#FFFDF0] border border-[#FDE68A]">
+                    <strong className="text-[#92400E] block mb-0.5">🌼 Tầng đầu</strong>
+                    <p>{aiResult.olfactoryPredictionHypothesis.topStage}</p>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-[#FFF1F5] border border-[#FBCFE8]">
+                    <strong className="text-[#BE185D] block mb-0.5">🌸 Tầng giữa</strong>
+                    <p>{aiResult.olfactoryPredictionHypothesis.heartStage}</p>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-[#ECFDF3] border border-[#BBF7D0]">
+                    <strong className="text-[#15803D] block mb-0.5">🌿 Tầng cuối</strong>
+                    <p>{aiResult.olfactoryPredictionHypothesis.baseStage}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </SpringAccordion>
         </section>
       )}
 
       {/* =====================================================================
-          PHẦN 4: NHÓM HỌC SINH ĐÁNH GIÁ & PHẢN BIỆN HÓA HỌC
+          4. NHẬN XÉT NHÓM & XUẤT BÁO CÁO (Accordion + Compact Export Bar)
          ===================================================================== */}
-      <section className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 sm:p-6 space-y-6">
-        <div className="pb-4 border-b border-slate-800">
-          <span className="text-xs text-slate-400 font-medium block">
-            04. Phân tích &amp; kiểm chứng thực nghiệm
-          </span>
-          <h2 className="text-xl sm:text-2xl font-serif font-bold text-slate-100 mt-0.5">
-            Phần nhận xét &amp; đánh giá đề xuất của nhóm học sinh
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-            AI đưa ra giả thuyết điều chỉnh tỉ lệ; nhóm vận dụng kiến thức Hóa học (độ bay hơi, nhóm chức, liên kết hydro, giới hạn IFRA) để đánh giá và đề xuất thực nghiệm kiểm chứng.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {/* Câu hỏi 1 */}
-          <div className="p-4 sm:p-5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3">
-            <label className="text-sm font-semibold text-slate-100 block">
-              1. Đề xuất của AI có hợp lý không? Vì sao?
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { id: 'very_reasonable', label: 'Hợp lý, có cơ sở khoa học' },
-                { id: 'partially_reasonable', label: 'Hợp lý một phần (cần tinh chỉnh)' },
-                { id: 'not_reasonable', label: 'Chưa hợp lý' },
-              ].map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() =>
-                    setStudentEval((p) => ({
-                      ...p,
-                      isReasonableRating: opt.id as StudentScientificEvaluation['isReasonableRating'],
-                    }))
-                  }
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    studentEval.isReasonableRating === opt.id
-                      ? 'bg-slate-800 border-amber-500/50 text-amber-200 font-semibold'
-                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-            <textarea
-              rows={4}
-              value={studentEval.isReasonableComment}
-              onChange={(e) =>
-                setStudentEval((p) => ({ ...p, isReasonableComment: e.target.value }))
-              }
-              placeholder="Nhận xét của nhóm về tính hợp lý trong đề xuất tăng/giảm tỉ lệ của AI..."
-              className="w-full p-3 rounded-lg bg-slate-900 border border-slate-800 text-xs sm:text-sm text-slate-200 leading-relaxed focus:outline-none focus:border-amber-500"
-            />
-          </div>
-
-          {/* Câu hỏi 2 */}
-          <div className="p-4 sm:p-5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3">
-            <label className="text-sm font-semibold text-slate-100 block">
-              2. Kiến thức Hóa học nào giúp giải thích sự thay đổi?
-            </label>
-            <div className="flex flex-wrap gap-1.5">
-              {CHEMISTRY_KNOWLEDGE_CHIPS.map((chip) => (
-                <button
-                  key={chip.title}
-                  type="button"
-                  onClick={() =>
-                    setStudentEval((p) => ({
-                      ...p,
-                      chemistryExplanation: p.chemistryExplanation
-                        ? `${p.chemistryExplanation}\n• ${chip.title}: ${chip.text}`
-                        : `• ${chip.title}: ${chip.text}`,
-                    }))
-                  }
-                  className="px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-[11px] transition-colors"
-                  title="Bấm để chèn gợi ý kiến thức Hóa học"
-                >
-                  + {chip.title}
-                </button>
-              ))}
-            </div>
-            <textarea
-              rows={4}
-              value={studentEval.chemistryExplanation}
-              onChange={(e) =>
-                setStudentEval((p) => ({ ...p, chemistryExplanation: e.target.value }))
-              }
-              placeholder="Giải thích bằng kiến thức Hóa học: cấu tạo phân tử, nhóm chức (terpene, alcohol, ester), liên kết hydro, khối lượng phân tử và tốc độ bay hơi..."
-              className="w-full p-3 rounded-lg bg-slate-900 border border-slate-800 text-xs sm:text-sm text-slate-200 leading-relaxed focus:outline-none focus:border-amber-500"
-            />
-          </div>
-
-          {/* Câu hỏi 3 */}
-          <div className="p-4 sm:p-5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3">
-            <label className="text-sm font-semibold text-slate-100 block">
-              3. Nhóm đồng ý hay không đồng ý với AI?
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { id: 'agree', label: 'Đồng ý hoàn toàn' },
-                {
-                  id: 'agree_with_modifications',
-                  label: 'Đồng ý có điều kiện (chỉnh lại thực tế)',
-                },
-                { id: 'disagree', label: 'Không đồng ý (giữ mẫu gốc)' },
-              ].map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() =>
-                    setStudentEval((p) => ({
-                      ...p,
-                      groupDecision: opt.id as StudentScientificEvaluation['groupDecision'],
-                    }))
-                  }
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    studentEval.groupDecision === opt.id
-                      ? 'bg-slate-800 border-emerald-500/50 text-emerald-200 font-semibold'
-                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-            <textarea
-              rows={4}
-              value={studentEval.groupDecisionReason}
-              onChange={(e) =>
-                setStudentEval((p) => ({ ...p, groupDecisionReason: e.target.value }))
-              }
-              placeholder="Nêu rõ quyết định của nhóm và lý do (ví dụ: lưu ý giới hạn IFRA Category 4 của tinh dầu Bergamot tự nhiên trên da)..."
-              className="w-full p-3 rounded-lg bg-slate-900 border border-slate-800 text-xs sm:text-sm text-slate-200 leading-relaxed focus:outline-none focus:border-emerald-500"
-            />
-          </div>
-
-          {/* Câu hỏi 4 */}
-          <div className="p-4 sm:p-5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3">
-            <label className="text-sm font-semibold text-slate-100 block">
-              4. Cần tiến hành thực nghiệm gì để kiểm chứng?
-            </label>
-            <p className="text-xs text-slate-400">
-              Các bước pha mẫu đối chứng và thử mùi thực tế trên giấy thử (blotter):
-            </p>
-            <textarea
-              rows={4}
-              value={studentEval.verificationExperimentPlan}
-              onChange={(e) =>
-                setStudentEval((p) => ({ ...p, verificationExperimentPlan: e.target.value }))
-              }
-              placeholder="Mô tả các bước pha mẫu đối chứng (10 mL), thử mùi trên giấy thử ở các mốc thời gian 15 phút, 2 giờ, 6 giờ..."
-              className="w-full p-3 rounded-lg bg-slate-900 border border-slate-800 text-xs sm:text-sm text-slate-200 leading-relaxed focus:outline-none focus:border-amber-500"
-            />
-          </div>
-        </div>
-
-        {/* =====================================================================
-            PHẦN 5: XUẤT KẾT QUẢ & NHẬN XÉT
-           ===================================================================== */}
-        <div className="p-4 sm:p-5 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h3 className="text-sm font-semibold text-slate-100">
-              Xuất bảng đối chiếu công thức &amp; phần nhận xét của nhóm
-            </h3>
-            <p className="text-xs text-slate-400">
-              Lưu lại toàn bộ số liệu công thức gốc, đề xuất của AI (tổng 100%) và 4 mục nhận xét Hóa học sang file .CSV hoặc sao chép vào bài thuyết trình.
-            </p>
+      <section className="spring-card p-5 sm:p-6 space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div>
+            <span className="px-3 py-1 rounded-full bg-[#DCFCE7] text-[#15803D] text-xs font-bold border border-[#BBF7D0]">
+              Phiếu phản biện &amp; Xuất file
+            </span>
+            <h2 className="text-lg font-bold text-[#2B342D] mt-1.5">
+              Lưu nhận xét &amp; tải báo cáo CSV
+            </h2>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -1317,41 +928,165 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
               type="button"
               onClick={handleExportFullReportCsv}
               disabled={!aiResult}
-              className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50 whitespace-nowrap"
+              className="px-4 py-2 rounded-2xl bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-xs flex items-center gap-1.5 disabled:opacity-50"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>Tải báo cáo (.CSV)</span>
+              <span>Tải CSV</span>
             </button>
 
             <button
               type="button"
               onClick={handleCopyPresentationReport}
               disabled={!aiResult}
-              className="px-3.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 font-medium text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50 whitespace-nowrap"
+              className="px-3.5 py-2 rounded-2xl bg-white hover:bg-[#FFF5F8] text-[#2B342D] border border-[#F3DCE4] font-bold text-xs flex items-center gap-1.5 disabled:opacity-50"
             >
-              {copiedReport ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-emerald-300">Đã sao chép</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Sao chép nội dung</span>
-                </>
-              )}
+              {copiedReport ? <Check className="w-3.5 h-3.5 text-[#16A34A]" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedReport ? 'Đã chép' : 'Sao chép'}</span>
             </button>
 
             <button
               type="button"
               onClick={() => window.print()}
-              className="px-3.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 font-medium text-xs flex items-center gap-1.5 transition-colors whitespace-nowrap"
+              className="px-3.5 py-2 rounded-2xl bg-white hover:bg-[#FFFDF0] text-[#92400E] border border-[#FDE68A] font-bold text-xs flex items-center gap-1.5"
             >
-              <Printer className="w-3.5 h-3.5 text-slate-400" />
+              <Printer className="w-3.5 h-3.5" />
               <span>In phiếu</span>
             </button>
           </div>
         </div>
+
+        <SpringAccordion
+          title="Mở phần nhận xét & đánh giá Hóa học của nhóm"
+          badge="4 mục"
+          icon={<ClipboardCheck className="w-4 h-4 text-[#DB2777]" />}
+          tone="cream"
+        >
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="p-3.5 rounded-2xl bg-[#FFFDF8] border border-[#F3DCE4] space-y-2">
+              <label className="font-bold text-[#2B342D] block">
+                1. Đánh giá đề xuất AI
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { id: 'very_reasonable', label: 'Hợp lý' },
+                  { id: 'partially_reasonable', label: 'Cần tinh chỉnh' },
+                  { id: 'not_reasonable', label: 'Chưa hợp lý' },
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() =>
+                      setStudentEval((p) => ({
+                        ...p,
+                        isReasonableRating: opt.id as StudentScientificEvaluation['isReasonableRating'],
+                      }))
+                    }
+                    className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                      studentEval.isReasonableRating === opt.id
+                        ? 'bg-[#FCE7F3] border-[#F472B6] text-[#BE185D]'
+                        : 'bg-white border-[#E5E7EB] text-[#5C6B5F]'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                rows={3}
+                value={studentEval.isReasonableComment}
+                onChange={(e) =>
+                  setStudentEval((p) => ({ ...p, isReasonableComment: e.target.value }))
+                }
+                className="w-full p-2.5 rounded-2xl bg-white border border-[#F3DCE4] text-xs text-[#2B342D]"
+              />
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-[#FFFDF8] border border-[#F3DCE4] space-y-2">
+              <label className="font-bold text-[#2B342D] block">
+                2. Cơ sở Hóa học (chạm để chèn)
+              </label>
+              <div className="flex flex-wrap gap-1">
+                {CHEMISTRY_KNOWLEDGE_CHIPS.map((chip) => (
+                  <button
+                    key={chip.title}
+                    type="button"
+                    onClick={() =>
+                      setStudentEval((p) => ({
+                        ...p,
+                        chemistryExplanation: p.chemistryExplanation
+                          ? `${p.chemistryExplanation}\n• ${chip.title}: ${chip.text}`
+                          : `• ${chip.title}: ${chip.text}`,
+                      }))
+                    }
+                    className="px-2.5 py-1 rounded-full bg-[#FEF9C3] hover:bg-[#FEF08A] text-[#854D0E] text-[11px] font-bold"
+                  >
+                    + {chip.title}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                rows={3}
+                value={studentEval.chemistryExplanation}
+                onChange={(e) =>
+                  setStudentEval((p) => ({ ...p, chemistryExplanation: e.target.value }))
+                }
+                className="w-full p-2.5 rounded-2xl bg-white border border-[#F3DCE4] text-xs text-[#2B342D]"
+              />
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-[#FFFDF8] border border-[#F3DCE4] space-y-2">
+              <label className="font-bold text-[#2B342D] block">3. Quyết định của nhóm</label>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { id: 'agree', label: 'Đồng ý' },
+                  { id: 'agree_with_modifications', label: 'Chỉnh nhẹ' },
+                  { id: 'disagree', label: 'Giữ gốc' },
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() =>
+                      setStudentEval((p) => ({
+                        ...p,
+                        groupDecision: opt.id as StudentScientificEvaluation['groupDecision'],
+                      }))
+                    }
+                    className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                      studentEval.groupDecision === opt.id
+                        ? 'bg-[#DCFCE7] border-[#86EFAC] text-[#15803D]'
+                        : 'bg-white border-[#E5E7EB] text-[#5C6B5F]'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                rows={3}
+                value={studentEval.groupDecisionReason}
+                onChange={(e) =>
+                  setStudentEval((p) => ({ ...p, groupDecisionReason: e.target.value }))
+                }
+                className="w-full p-2.5 rounded-2xl bg-white border border-[#F3DCE4] text-xs text-[#2B342D]"
+              />
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-[#FFFDF8] border border-[#F3DCE4] space-y-2">
+              <label className="font-bold text-[#2B342D] block">4. Kiểm chứng thực tế</label>
+              <textarea
+                rows={4}
+                value={studentEval.verificationExperimentPlan}
+                onChange={(e) =>
+                  setStudentEval((p) => ({
+                    ...p,
+                    verificationExperimentPlan: e.target.value,
+                  }))
+                }
+                className="w-full p-2.5 rounded-2xl bg-white border border-[#F3DCE4] text-xs text-[#2B342D]"
+              />
+            </div>
+          </div>
+        </SpringAccordion>
       </section>
     </div>
   );
