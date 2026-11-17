@@ -1,7 +1,18 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { calculateFormula, autoBalanceSlots, FormulaSlot } from './perfumeCalculations.ts';
-import { generateLocalEvaluation, normalizeAdjustmentOutput } from './aiPerfumeEngine.ts';
+import {
+  generateLocalEvaluation,
+  normalizeAdjustmentOutput,
+  generateLocalAdjustment,
+} from './aiPerfumeEngine.ts';
+import {
+  adjustStandalonePrecisionFormula,
+  detectIngredientMentions,
+  checkMissingIngredients,
+  sanitizeStandalonePrecisionResponse,
+  enforceClientFormulaIntegrity,
+} from './precisionFormulaAdjuster.ts';
 
 const SAMPLE_SLOTS: FormulaSlot[] = [
   { key: 'top1', tier: 'top', tierLabel: 'Tầng Đầu', slotNumber: 1, ingredientId: 'top_jasmine', percentage: 40 },
@@ -52,13 +63,15 @@ describe('Floris Perfume Calculation & AI Normalization Logic', () => {
     assert.equal(sum, 100);
   });
 
-  it('normalizeAdjustmentOutput enforces 100% sum even if raw AI output does not add to 100', () => {
+  it('Rule 1 & 2: normalizeAdjustmentOutput keeps inactive 0% slots at 0% and balances active slots to 100%', () => {
     const calc = calculateFormula(SAMPLE_SLOTS, 10, 10);
     const result = normalizeAdjustmentOutput(
       {
         adjustedIngredients: [
           { slotKey: 'top1', newPercentage: 50, reason: 'Boost top' },
+          { slotKey: 'top2', newPercentage: 10, reason: 'AI tried adding inactive top2' },
           { slotKey: 'heart1', newPercentage: 30, reason: 'Keep heart' },
+          { slotKey: 'heart2', newPercentage: 8, reason: 'AI tried adding inactive heart2' },
           { slotKey: 'base1', newPercentage: 20, reason: 'Keep musk' },
           { slotKey: 'base2', newPercentage: 20, reason: 'Keep vanilla' },
         ],
@@ -67,9 +80,176 @@ describe('Floris Perfume Calculation & AI Normalization Logic', () => {
       10,
       10
     );
+    const top2 = result.comparisonItems.find((c) => c.slotKey === 'top2')!;
+    const heart2 = result.comparisonItems.find((c) => c.slotKey === 'heart2')!;
+    assert.equal(top2.newPercentage, 0);
+    assert.equal(top2.newDrops, 0);
+    assert.equal(heart2.newPercentage, 0);
+    assert.equal(heart2.newDrops, 0);
+
     const sum = result.comparisonItems.reduce((a, b) => a + b.newPercentage, 0);
     assert.equal(sum, 100);
     assert.equal(result.validationReport?.isValid100, true);
+    assert.deepEqual(
+      result.formula.map((f) => f.name),
+      calc.calculatedIngredients.filter((c) => c.percentage > 0).map((c) => c.name)
+    );
+  });
+
+  it('Rule 3: adjusts only active quantities dynamically relative to current amounts', () => {
+    const calc = calculateFormula(SAMPLE_SLOTS, 10, 10);
+
+    // Sensory fresher request increases active Top (Hoa nhài > 40%) while keeping 0% slots untouched
+    const fresher = generateLocalAdjustment(
+      'Tôi muốn mùi nước hoa tươi mát hơn.',
+      'Mùa Xuân (Spring)',
+      10,
+      10,
+      calc.calculatedIngredients,
+      calc.tierTotals
+    );
+    assert.equal(fresher.isUnchanged, false);
+    const top1Fresher = fresher.comparisonItems.find((c) => c.slotKey === 'top1')!;
+    assert.ok(top1Fresher.newPercentage > 40, `Expected top1 > 40%, got ${top1Fresher.newPercentage}`);
+    assert.equal(fresher.comparisonItems.find((c) => c.slotKey === 'top2')!.newPercentage, 0);
+    assert.equal(fresher.comparisonItems.find((c) => c.slotKey === 'heart2')!.newPercentage, 0);
+    assert.equal(fresher.comparisonItems.reduce((a, b) => a + b.newPercentage, 0), 100);
+
+    // Named active note boost increases Đào > 30%
+    const morePeach = generateLocalAdjustment(
+      'Tôi muốn hương quả đào ngọt dịu rõ hơn.',
+      'Mùa Xuân (Spring)',
+      10,
+      10,
+      calc.calculatedIngredients,
+      calc.tierTotals
+    );
+    const heart1Peach = morePeach.comparisonItems.find((c) => c.slotKey === 'heart1')!;
+    assert.ok(heart1Peach.newPercentage > 30, `Expected peach > 30%, got ${heart1Peach.newPercentage}`);
+    assert.equal(morePeach.comparisonItems.reduce((a, b) => a + b.newPercentage, 0), 100);
+
+    // Explicit target percentage ("Tăng đào lên 45%")
+    const targetPeach = generateLocalAdjustment(
+      'Tăng đào lên 45%',
+      'Mùa Xuân (Spring)',
+      10,
+      10,
+      calc.calculatedIngredients,
+      calc.tierTotals
+    );
+    assert.equal(targetPeach.comparisonItems.find((c) => c.slotKey === 'heart1')!.newPercentage, 45);
+    assert.equal(targetPeach.comparisonItems.reduce((a, b) => a + b.newPercentage, 0), 100);
+  });
+
+  it('Rule 4: handles missing ingredients by keeping original amounts strictly unchanged', () => {
+    const standaloneFormula = [
+      { name: 'Peach', amount: 30 },
+      { name: 'Rose', amount: 30 },
+      { name: 'Musk', amount: 20 },
+      { name: 'Vanilla', amount: 20 },
+    ];
+    const standaloneRes = adjustStandalonePrecisionFormula('Adjust Jasmine', standaloneFormula);
+    assert.deepEqual(standaloneRes.formula, standaloneFormula);
+    assert.match(standaloneRes.message, /Jasmine/i);
+
+    const calc = calculateFormula(SAMPLE_SLOTS, 10, 10);
+    for (const req of ['Tăng hương Oải hương', 'Tăng hương Cam Bergamot', 'Thêm sắc thái Gỗ đàn hương']) {
+      const res = generateLocalAdjustment(
+        req,
+        'Mùa Xuân (Spring)',
+        10,
+        10,
+        calc.calculatedIngredients,
+        calc.tierTotals
+      );
+      assert.equal(res.isUnchanged, true, `Expected unchanged for "${req}"`);
+      assert.deepEqual(
+        res.comparisonItems.map((c) => c.newPercentage),
+        [40, 0, 30, 0, 15, 15]
+      );
+      assert.ok(res.comparisonItems.every((c) => c.deltaPercentage === 0));
+      assert.ok((res.missingIngredients || []).length > 0);
+    }
+  });
+
+  it('prevents Vietnamese substring false positives while separating compound flower names', () => {
+    const calc = calculateFormula(SAMPLE_SLOTS, 10, 10);
+    const active = calc.calculatedIngredients.filter((c) => c.percentage > 0);
+
+    // "cảm giác" must NOT trigger "cam"
+    const camGiacCheck = checkMissingIngredients('Tôi muốn giảm cảm giác nồng, mùi thanh khiết nhẹ nhàng.', active);
+    assert.equal(camGiacCheck.hasMissingIngredient, false);
+
+    // "tăng ... lên" must NOT trigger "lê"
+    const lenCheck = checkMissingIngredients('Tăng hoa nhài lên 50%', active);
+    assert.equal(lenCheck.hasMissingIngredient, false);
+    assert.equal(lenCheck.matchedActiveIngredients.length, 1);
+
+    // "hoa anh đào" must detect Cherry Blossom as missing rather than matching active "Đào (Peach)"
+    const mentions = detectIngredientMentions('Tăng hương hoa anh đào', active);
+    assert.deepEqual(
+      mentions.map((m) => m.canonicalKey),
+      ['cherry_blossom']
+    );
+    const sakuraCheck = checkMissingIngredients('Tăng hương hoa anh đào', active);
+    assert.equal(sakuraCheck.hasMissingIngredient, true);
+  });
+
+  it('client-side failsafe rejects unauthorized ingredients or dropped original notes', () => {
+    const baseFormula = [
+      { name: 'Đào (Peach)', amount: 30 },
+      { name: 'Hồng (Rose)', amount: 25 },
+      { name: 'Xạ hương (Musk)', amount: 25 },
+      { name: 'Vani (Vanilla)', amount: 20 },
+    ];
+
+    // Sneaked unauthorized ingredient "Oải hương"
+    const tamperedAdd = sanitizeStandalonePrecisionResponse(
+      {
+        message: 'Added Lavender',
+        formula: [
+          { name: 'Đào (Peach)', amount: 30 },
+          { name: 'Hồng (Rose)', amount: 20 },
+          { name: 'Xạ hương (Musk)', amount: 20 },
+          { name: 'Vani (Vanilla)', amount: 15 },
+          { name: 'Oải hương (Lavender)', amount: 15 },
+        ],
+      },
+      baseFormula,
+      'Tăng hương đào'
+    );
+    assert.equal(tamperedAdd.accepted, false);
+    assert.deepEqual(tamperedAdd.result.formula, baseFormula);
+
+    // Valid exact 4-item adjustment accepted
+    const validUpdate = sanitizeStandalonePrecisionResponse(
+      {
+        message: 'Tăng Đào lên 40%',
+        formula: [
+          { name: 'Đào (Peach)', amount: 40 },
+          { name: 'Hồng (Rose)', amount: 20 },
+          { name: 'Xạ hương (Musk)', amount: 20 },
+          { name: 'Vani (Vanilla)', amount: 20 },
+        ],
+      },
+      baseFormula,
+      'Tăng hương đào'
+    );
+    assert.equal(validUpdate.accepted, true);
+    assert.equal(validUpdate.result.formula[0].amount, 40);
+
+    // Floris 6-slot failsafe rejects tampered 0% slot activation
+    const calc = calculateFormula(SAMPLE_SLOTS, 10, 10);
+    const fakeBadResult = generateLocalAdjustment('Tăng đào', 'Mùa Xuân (Spring)', 10, 10, calc.calculatedIngredients);
+    fakeBadResult.comparisonItems = fakeBadResult.comparisonItems.map((item) =>
+      item.slotKey === 'top2' ? { ...item, newPercentage: 12, deltaPercentage: 12 } : item
+    );
+    const guarded = enforceClientFormulaIntegrity(fakeBadResult, calc.calculatedIngredients, 'Tăng đào', 10, 10);
+    assert.equal(guarded.isUnchanged, true);
+    assert.deepEqual(
+      guarded.comparisonItems.map((c) => c.newPercentage),
+      [40, 0, 30, 0, 15, 15]
+    );
   });
 
   it('generateLocalEvaluation returns bounded radar values and Spring suitability score', () => {
@@ -79,3 +259,4 @@ describe('Floris Perfume Calculation & AI Normalization Logic', () => {
     assert.ok(evalRes.olfactoryRadar.floral >= 15 && evalRes.olfactoryRadar.floral <= 95);
   });
 });
+

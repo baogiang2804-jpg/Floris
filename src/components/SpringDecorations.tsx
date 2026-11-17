@@ -1,24 +1,47 @@
 import React from 'react';
 
+interface SakuraPetalsBackdropProps {
+  enabled?: boolean;
+}
+
 /**
- * Subtle falling sakura petals & young spring leaves backdrop.
- * Uses inline SVG only, pointer-events-none, and respects prefers-reduced-motion.
+ * Falling sakura blossoms, curved petals, butter flowers & young spring leaves backdrop.
+ * Uses inline SVG only, pointer-events-none, supports instant ON/OFF toggle and respects reduced motion.
  */
-export const SakuraPetalsBackdrop: React.FC = () => {
-  const petals = [
-    { left: '6%', size: 16, duration: '18s', delay: '0s', type: 'petal' },
-    { left: '16%', size: 13, duration: '21s', delay: '-5s', type: 'leaf' },
-    { left: '28%', size: 15, duration: '16s', delay: '-9s', type: 'petal' },
-    { left: '42%', size: 12, duration: '22s', delay: '-3s', type: 'petal' },
-    { left: '58%', size: 14, duration: '19s', delay: '-11s', type: 'leaf' },
-    { left: '72%', size: 17, duration: '17s', delay: '-6s', type: 'petal' },
-    { left: '84%', size: 13, duration: '20s', delay: '-13s', type: 'petal' },
-    { left: '93%', size: 14, duration: '23s', delay: '-2s', type: 'leaf' },
+export const SakuraPetalsBackdrop: React.FC<SakuraPetalsBackdropProps> = ({
+  enabled = true,
+}) => {
+  const petals: {
+    left: string;
+    size: number;
+    duration: string;
+    delay: string;
+    type: 'petal' | 'blossom' | 'leaf' | 'butter';
+    alt?: boolean;
+  }[] = [
+    { left: '3%', size: 17, duration: '14s', delay: '-2s', type: 'petal' },
+    { left: '9%', size: 21, duration: '17s', delay: '-8s', type: 'blossom', alt: true },
+    { left: '15%', size: 14, duration: '19s', delay: '-4s', type: 'leaf' },
+    { left: '21%', size: 16, duration: '13s', delay: '-10s', type: 'petal', alt: true },
+    { left: '27%', size: 18, duration: '16s', delay: '-6s', type: 'butter' },
+    { left: '33%', size: 22, duration: '18s', delay: '-12s', type: 'blossom' },
+    { left: '40%', size: 14, duration: '15s', delay: '-3s', type: 'petal', alt: true },
+    { left: '46%', size: 15, duration: '20s', delay: '-14s', type: 'leaf' },
+    { left: '52%', size: 19, duration: '14s', delay: '-7s', type: 'petal' },
+    { left: '58%', size: 20, duration: '16.5s', delay: '-1s', type: 'blossom', alt: true },
+    { left: '64%', size: 15, duration: '18.5s', delay: '-9s', type: 'butter' },
+    { left: '70%', size: 18, duration: '13.5s', delay: '-5s', type: 'petal' },
+    { left: '76%', size: 14, duration: '21s', delay: '-11s', type: 'leaf', alt: true },
+    { left: '82%', size: 22, duration: '15.5s', delay: '-3.5s', type: 'blossom' },
+    { left: '87%', size: 16, duration: '17.5s', delay: '-13s', type: 'petal', alt: true },
+    { left: '92%', size: 15, duration: '19.5s', delay: '-6.5s', type: 'leaf' },
+    { left: '96%', size: 18, duration: '14.5s', delay: '-9.5s', type: 'petal' },
   ];
 
   return (
     <div
       aria-hidden="true"
+      data-petals-enabled={enabled ? 'true' : 'false'}
       className="fixed inset-0 pointer-events-none overflow-hidden z-0 select-none"
     >
       {/* Top-right soft sakura & butter radial glow */}
@@ -38,66 +61,120 @@ export const SakuraPetalsBackdrop: React.FC = () => {
         }}
       />
 
-      {petals.map((p, idx) => (
-        <div
-          key={idx}
-          className="absolute -top-8 animate-sakura-fall"
-          style={
-            {
-              left: p.left,
-              '--fall-duration': p.duration,
-              '--fall-delay': p.delay,
-            } as React.CSSProperties
-          }
-        >
-          {p.type === 'petal' ? (
-            <svg
-              width={p.size}
-              height={p.size}
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M12 2C15.5 5 18 9.2 17.5 13.8C17 17.8 14.5 20.5 12 21.5C9.5 20.5 7 17.8 6.5 13.8C6 9.2 8.5 5 12 2Z"
-                fill="#FBCFE8"
-                stroke="#F472B6"
-                strokeOpacity="0.45"
-                strokeWidth="1"
-              />
-              <path
-                d="M12 4.5C12.3 9 12.2 14 12 18.5"
-                stroke="#F9A8D4"
-                strokeWidth="0.9"
-                strokeLinecap="round"
-              />
-            </svg>
-          ) : (
-            <svg
-              width={p.size}
-              height={p.size}
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M4 19C5 10 11 4.5 20 4C19.5 13 14 19 4 19Z"
-                fill="#BBF7D0"
-                stroke="#4ADE80"
-                strokeOpacity="0.55"
-                strokeWidth="1"
-              />
-              <path
-                d="M5.5 17.5C9.5 13.5 14 9.5 18 6"
-                stroke="#22C55E"
-                strokeOpacity="0.5"
-                strokeWidth="1"
-                strokeLinecap="round"
-              />
-            </svg>
-          )}
-        </div>
-      ))}
+      {enabled &&
+        petals.map((p, idx) => (
+          <div
+            key={idx}
+            className={`absolute -top-8 ${p.alt ? 'animate-sakura-fall-alt' : 'animate-sakura-fall'}`}
+            style={
+              {
+                left: p.left,
+                '--fall-duration': p.duration,
+                '--fall-delay': p.delay,
+              } as React.CSSProperties
+            }
+          >
+            {p.type === 'petal' && (
+              <svg
+                width={p.size}
+                height={p.size}
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M12 2C15.8 5.2 18.2 9.4 17.6 14C17 18 14.5 20.6 12 21.5C9.5 20.6 7 18 6.4 14C5.8 9.4 8.2 5.2 12 2Z"
+                  fill={idx % 2 === 0 ? '#FBCFE8' : '#F9A8D4'}
+                  stroke="#EC4899"
+                  strokeOpacity="0.45"
+                  strokeWidth="1"
+                />
+                <path
+                  d="M12 4.5C12.3 9 12.2 14 12 18.5"
+                  stroke="#F472B6"
+                  strokeOpacity="0.6"
+                  strokeWidth="0.9"
+                  strokeLinecap="round"
+                />
+              </svg>
+            )}
+
+            {p.type === 'blossom' && (
+              <svg
+                width={p.size}
+                height={p.size}
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <g transform="translate(12 12)">
+                  {[0, 72, 144, 216, 288].map((deg) => (
+                    <path
+                      key={deg}
+                      transform={`rotate(${deg})`}
+                      d="M0 -1.8 C2.8 -6, 5.2 -8.2, 0 -10 C-5.2 -8.2, -2.8 -6, 0 -1.8Z"
+                      fill="#FBCFE8"
+                      stroke="#EC4899"
+                      strokeOpacity="0.45"
+                      strokeWidth="0.7"
+                    />
+                  ))}
+                  <circle cx="0" cy="0" r="2.3" fill="#FDE047" />
+                </g>
+              </svg>
+            )}
+
+            {p.type === 'butter' && (
+              <svg
+                width={p.size}
+                height={p.size}
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <g transform="translate(12 12)">
+                  {[0, 72, 144, 216, 288].map((deg) => (
+                    <path
+                      key={deg}
+                      transform={`rotate(${deg})`}
+                      d="M0 -1.8 C2.8 -5.8, 4.8 -7.8, 0 -9.5 C-4.8 -7.8, -2.8 -5.8, 0 -1.8Z"
+                      fill="#FEF08A"
+                      stroke="#EAB308"
+                      strokeOpacity="0.45"
+                      strokeWidth="0.7"
+                    />
+                  ))}
+                  <circle cx="0" cy="0" r="2.1" fill="#F9A8D4" />
+                </g>
+              </svg>
+            )}
+
+            {p.type === 'leaf' && (
+              <svg
+                width={p.size}
+                height={p.size}
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M4 19C5 10 11 4.5 20 4C19.5 13 14 19 4 19Z"
+                  fill="#BBF7D0"
+                  stroke="#4ADE80"
+                  strokeOpacity="0.6"
+                  strokeWidth="1"
+                />
+                <path
+                  d="M5.5 17.5C9.5 13.5 14 9.5 18 6"
+                  stroke="#22C55E"
+                  strokeOpacity="0.55"
+                  strokeWidth="1"
+                  strokeLinecap="round"
+                />
+              </svg>
+            )}
+          </div>
+        ))}
     </div>
   );
 };

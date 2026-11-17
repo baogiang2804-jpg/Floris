@@ -68,6 +68,7 @@ import {
 const STORAGE_KEY = 'floris_saved_formulas_v4';
 const HISTORY_STORAGE_KEY = 'atelier_pyramid_history_v2';
 const CUSTOM_INGREDIENTS_KEY = 'atelier_custom_ingredients_v1';
+const PETAL_EFFECT_KEY = 'floris_petal_effect_v1';
 
 // Initial pre-loaded 3 experimental sample formulas from the group's lab report (Mẫu A - Gốc, Mẫu B - Tươi hơn, Mẫu C - Dịu/Ngọt hơn)
 const INITIAL_PRESET_FORMULAS: SavedFormula[] = [
@@ -257,6 +258,24 @@ export default function App() {
 
   // Optional custom perfume title (either from AI or user)
   const [perfumeName, setPerfumeName] = useState<string>(EXPERIMENTAL_BASELINE_FORMULA.title);
+
+  // Falling petals ambient effect toggle (default ON, persisted)
+  const [effectsEnabled, setEffectsEnabled] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(PETAL_EFFECT_KEY);
+      return saved === null ? true : saved !== 'false';
+    } catch {
+      return true;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(PETAL_EFFECT_KEY, effectsEnabled ? 'true' : 'false');
+    } catch {
+      // ignore storage errors
+    }
+  }, [effectsEnabled]);
 
   // Active Web Page state ('main' = Web Chính, 'experimental' = Web Riêng Công Thức Thực Nghiệm, 'csv' = Web Phụ 1 Nhập Công Thức & CSV, 'ai' = Web Phụ 2 Chuyên Gia AI Thẩm Định, 'python' = Web Phụ 3 App Python Streamlit)
   const [activePage, setActivePage] = useState<'main' | 'experimental' | 'csv' | 'ai' | 'python'>('main');
@@ -991,7 +1010,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen overflow-x-clip text-[#2B342D] flex flex-col font-sans relative selection:bg-[#FCE7F3] selection:text-[#BE185D]">
-      <SakuraPetalsBackdrop />
+      <SakuraPetalsBackdrop enabled={effectsEnabled} />
 
       <div className="relative z-10 flex flex-col min-h-screen">
         {/* 1. Spring Pastel Header */}
@@ -1012,6 +1031,8 @@ export default function App() {
           onOpenGuide={() => setIsGuideOpen(true)}
           onOpenVoiceWidget={() => setIsVoiceWidgetOpen(true)}
           onOpenExperimentalPopup={() => setIsExperimentalPopupOpen(true)}
+          effectsEnabled={effectsEnabled}
+          onToggleEffects={() => setEffectsEnabled((prev) => !prev)}
         />
 
         {/* Floating Global Quick Toast */}

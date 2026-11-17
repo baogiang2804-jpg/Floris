@@ -75,6 +75,7 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const lastTranscriptRef = useRef<string>('');
+  const promptInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const [autoSpeak, setAutoSpeak] = useState<boolean>(true);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
@@ -171,16 +172,8 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
         mediaRecorderRef.current.stop();
       }
 
-      const promptToAnalyze = (lastTranscriptRef.current || userRequest || '').trim();
-      if (promptToAnalyze) {
-        setVoiceStatusText('Đã nghe xong · AI đang tính công thức...');
-        handleSendRequestToAI(promptToAnalyze);
-      } else {
-        const defaultPrompt = 'Tôi muốn mùi hoa nhài ở đầu thanh thoát và tươi mát hơn.';
-        setUserRequest(defaultPrompt);
-        setVoiceStatusText('Đang phân tích gợi ý tươi mát...');
-        handleSendRequestToAI(defaultPrompt);
-      }
+      setVoiceStatusText('Đã dừng nghe — bạn có thể sửa lỗi chính tả rồi bấm "Đề xuất tỷ lệ mới".');
+      setTimeout(() => promptInputRef.current?.focus(), 0);
       return;
     }
 
@@ -195,12 +188,12 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
       try {
         const recognition = new SpeechRecognitionAPI();
         recognition.lang = 'vi-VN';
-        recognition.continuous = true;
+        recognition.continuous = false;
         recognition.interimResults = true;
 
         recognition.onstart = () => {
           setIsListening(true);
-          setVoiceStatusText('🎙️ Đang nghe... Chạm lại mic khi nói xong.');
+          setVoiceStatusText('🎙️ Đang nghe... Nói xong hệ thống sẽ đưa vào ô để bạn sửa trước khi gửi.');
         };
 
         recognition.onresult = (event: any) => {
@@ -211,7 +204,7 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
           if (transcript) {
             setUserRequest(transcript);
             lastTranscriptRef.current = transcript;
-            setVoiceStatusText(`Đã nghe: "${transcript}"`);
+            setVoiceStatusText(`Đã nghe: "${transcript}" — kiểm tra lại chữ trước khi gửi.`);
           }
         };
 
@@ -222,6 +215,8 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
 
         recognition.onend = () => {
           setIsListening(false);
+          setVoiceStatusText('Đã ghi nhận — bạn có thể sửa lỗi chính tả rồi bấm "Đề xuất tỷ lệ mới".');
+          setTimeout(() => promptInputRef.current?.focus(), 0);
         };
 
         recognitionRef.current = recognition;
@@ -252,8 +247,8 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
         if (transcript) {
           setUserRequest(transcript);
           lastTranscriptRef.current = transcript;
-          setVoiceStatusText(`Đã nghe: "${transcript}"`);
-          handleSendRequestToAI(transcript);
+          setVoiceStatusText(`Đã nghe: "${transcript}" — hãy sửa lại nếu cần rồi bấm gửi.`);
+          setTimeout(() => promptInputRef.current?.focus(), 0);
         } else {
           setVoiceStatusText('');
         }
@@ -338,8 +333,8 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
 
   const samplePrompts = [
     { badge: '🍃 Dịu nhẹ', text: 'Tôi muốn hương thơm dịu hơn, ít ngọt hơn' },
-    { badge: '🍋 Tươi cam', text: 'Tôi muốn mùi tươi mát hơn và rõ cam chanh' },
-    { badge: '🌸 Rõ hoa', text: 'Tôi muốn hương hoa ở tầng giữa nổi bật hơn' },
+    { badge: '🌼 Tươi mới', text: 'Tôi muốn mùi tươi mát và thanh thoát hơn' },
+    { badge: '🍑 Rõ đào', text: 'Tôi muốn hương đào ở tầng giữa nổi bật hơn' },
     { badge: '🪵 Lưu lâu', text: 'Tăng xạ hương và vanilla để lưu hương lâu hơn' },
   ];
 
@@ -471,9 +466,13 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
 
             <div className="relative">
               <textarea
+                ref={promptInputRef}
                 rows={2}
                 value={userRequest}
-                onChange={(e) => setUserRequest(e.target.value)}
+                onChange={(e) => {
+                  setUserRequest(e.target.value);
+                  lastTranscriptRef.current = e.target.value;
+                }}
                 placeholder="Ví dụ: Hương tươi mát hơn, giảm ngọt..."
                 className="w-full p-3.5 pr-14 rounded-2xl bg-white border-2 border-[#FBCFE8] focus:border-[#EC4899] text-xs sm:text-sm text-[#2B342D] focus:outline-none resize-none"
               />
@@ -536,15 +535,27 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
       {/* Visual Side-by-Side Results */}
       {adjustmentResult && (
         <div className="pt-4 border-t border-[#F6DCE5] space-y-4">
-          <div className="p-4 rounded-3xl bg-[#FFF5F8] border border-[#FBCFE8] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div
+            className={`p-4 rounded-3xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+              adjustmentResult.isUnchanged
+                ? 'bg-[#FFFDF0] border-[#FCD34D]'
+                : 'bg-[#FFF5F8] border-[#FBCFE8]'
+            }`}
+          >
             <div>
-              <span className="text-[11px] font-bold text-[#BE185D] uppercase">
-                ✨ Đề xuất AI
+              <span
+                className={`text-[11px] font-bold uppercase ${
+                  adjustmentResult.isUnchanged ? 'text-[#92400E]' : 'text-[#BE185D]'
+                }`}
+              >
+                {adjustmentResult.isUnchanged ? '⚠️ Giữ nguyên tỷ lệ gốc' : '✨ Đề xuất AI'}
               </span>
               <h4 className="text-base font-bold text-[#2B342D]">
                 {adjustmentResult.proposedPerfumeName}
               </h4>
-              <p className="text-xs text-[#4A4D48] mt-1">“{adjustmentResult.spokenResponse}”</p>
+              <p className="text-xs text-[#4A4D48] mt-1">
+                {adjustmentResult.message || adjustmentResult.spokenResponse}
+              </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -566,29 +577,35 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
                 </button>
               )}
 
-              <button
-                type="button"
-                onClick={handleSaveToComparisonList}
-                className="px-3 py-1.5 rounded-2xl bg-[#FEF9C3] text-[#854D0E] border border-[#FDE047] text-xs font-bold flex items-center gap-1"
-              >
-                <BookmarkPlus className="w-3.5 h-3.5" />
-                <span>{savedToDrawerSuccess ? 'Đã lưu' : 'Lưu'}</span>
-              </button>
+              {!adjustmentResult.isUnchanged && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleSaveToComparisonList}
+                    className="px-3 py-1.5 rounded-2xl bg-[#FEF9C3] text-[#854D0E] border border-[#FDE047] text-xs font-bold flex items-center gap-1"
+                  >
+                    <BookmarkPlus className="w-3.5 h-3.5" />
+                    <span>{savedToDrawerSuccess ? 'Đã lưu' : 'Lưu'}</span>
+                  </button>
 
-              <button
-                type="button"
-                onClick={handleApplyToMainWorkspace}
-                className="px-4 py-1.5 rounded-2xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold flex items-center gap-1"
-              >
-                <Check className="w-3.5 h-3.5" />
-                <span>{appliedSuccess ? 'Đã áp dụng' : 'Áp dụng'}</span>
-              </button>
+                  <button
+                    type="button"
+                    onClick={handleApplyToMainWorkspace}
+                    className="px-4 py-1.5 rounded-2xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold flex items-center gap-1"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>{appliedSuccess ? 'Đã áp dụng' : 'Áp dụng'}</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
           {/* Visual Comparison Bars */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {adjustmentResult.comparisonItems.map((item) => (
+            {adjustmentResult.comparisonItems
+              .filter((item) => item.oldPercentage > 0 || item.newPercentage > 0)
+              .map((item) => (
               <div
                 key={item.slotKey}
                 className="p-3.5 rounded-2xl bg-white border border-[#F3DCE4] space-y-2"

@@ -5,6 +5,15 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
+import {
+  checkMissingIngredients,
+  parseExplicitAddRemoveCommand,
+  normalizeAdjustmentOutput,
+  generateLocalAdjustment,
+  adjustStandalonePrecisionFormula,
+  normalizeStandalonePrecisionOutput,
+  PrecisionFormulaEntry,
+} from './src/utils/precisionFormulaAdjuster.ts';
 
 dotenv.config();
 
@@ -293,18 +302,50 @@ function generateLocalEvaluation(
 // 2. Interactive QR & Voice AI Formula Adjustment Endpoint
 app.post(['/api/perfume/adjust', '/Floris/api/perfume/adjust'], async (req: Request, res: Response) => {
   try {
+    const bodyFormula: PrecisionFormulaEntry[] | undefined = Array.isArray(req.body?.formula)
+      ? req.body.formula
+      : Array.isArray(req.body?.currentFormula)
+      ? req.body.currentFormula
+      : undefined;
+
     const {
-      userRequest,
-      season,
-      totalVolume = 50,
+      userRequest = req.body?.request,
+      season = 'Mùa Xuân (Spring)',
+      totalVolume = 10,
       concentration = 'Eau de Parfum (EDP)',
-      concentrationPercent = 18,
+      concentrationPercent = 20,
       ingredients = [],
       tierTotals = {},
     } = req.body;
 
     if (!userRequest || typeof userRequest !== 'string') {
       return res.status(400).json({ error: 'Vui lòng nhập hoặc nói yêu cầu điều chỉnh mùi hương.' });
+    }
+
+    // Standalone { message, formula: [{ name, amount }] } precision mode
+    if (bodyFormula && (!Array.isArray(ingredients) || ingredients.length === 0)) {
+      const result = await handleStandalonePrecisionRequest(userRequest, bodyFormula);
+      return res.json(result);
+    }
+
+    const activeIngredients = (ingredients || []).filter((i: any) => (i.percentage || 0) > 0);
+    const cmd = parseExplicitAddRemoveCommand(userRequest);
+    const missingCheck = checkMissingIngredients(userRequest, activeIngredients);
+
+    // Rule 4 pre-guard: If user asks to adjust an ingredient NOT in active formula, keep original numbers unchanged
+    if (missingCheck.hasMissingIngredient && !cmd.isExplicitRemove) {
+      const localUnchanged = generateLocalAdjustment(
+        userRequest,
+        season,
+        totalVolume,
+        concentrationPercent,
+        ingredients,
+        tierTotals
+      );
+      return res.json({
+        ...localUnchanged,
+        source: 'precision_guard',
+      });
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
@@ -336,40 +377,38 @@ app.post(['/api/perfume/adjust', '/Floris/api/perfume/adjust'], async (req: Requ
     const pureFragranceMl = Number(((totalVolume * concentrationPercent) / 100).toFixed(2));
     const carrierAlcoholMl = Number((totalVolume - pureFragranceMl).toFixed(2));
 
-    const prompt = `Bạn là Chuyên gia Điều chế Nước hoa & Cố vấn Hóa học Mùi hương (AI Perfumery & Chemistry Advisor) hỗ trợ nhóm học sinh thuyết trình khoa học.
-Người dùng / người tham quan vừa đưa ra yêu cầu cải tiến công thức nước hoa thực nghiệm như sau:
+    const prompt = `You are a precision perfume formulation assistant and Chemistry Advisor. Your ONLY job is to adjust the proportions of an existing fragrance formula based on the user's request.
+
+USER REQUEST:
 "${userRequest}"
 
-THÔNG TIN CÔNG THỨC THỰC NGHIỆM GỐC:
-- Bối cảnh / Mùa: ${season}
-- Quy mô pha chế: Chai ${totalVolume} mL thành phẩm
-- Nồng độ pha chế: ${concentration} (${concentrationPercent}% cốt hương liệu nguyên chất = ${pureFragranceMl} mL tinh dầu + ${100 - concentrationPercent}% dung môi Ethanol 96° = ${carrierAlcoholMl} mL cồn).
-- Phân bổ 3 tầng hương hiện tại (tính trên 100% hỗn hợp cốt hương liệu):
-  * Tầng Đầu (Top Notes): ${tierTotals?.top || 0}%
-  * Tầng Giữa (Heart Notes): ${tierTotals?.heart || 0}%
-  * Tầng Cuối (Base Notes): ${tierTotals?.base || 0}%
-- Chi tiết 6 nguyên liệu trong công thức thực nghiệm gốc:
-${(ingredients || [])
+CURRENT FORMULA CONTEXT (${season}, ${totalVolume} mL, ${concentration} ${concentrationPercent}% = ${pureFragranceMl} mL fragrance oil + ${carrierAlcoholMl} mL Ethanol):
+Active Ingredients (ONLY these exist in the current formula):
+${activeIngredients
   .map(
     (ing: any, idx: number) =>
-      `  ${idx + 1}. Slot [${ing.slotKey}] (${ing.tierLabel}) - Tên: "${ing.name}" (${ing.scentFamily}): Tỉ lệ phối trộn trong cốt hương = ${ing.percentage}% (Nồng độ trong sản phẩm nước hoa hoàn chỉnh = ${Number(((ing.percentage * concentrationPercent) / 100).toFixed(2))}%)`
+      `  ${idx + 1}. Slot [${ing.slotKey}] (${ing.tierLabel}) - Exact Name: "${ing.name}" (${ing.scentFamily}): Current Amount = ${ing.percentage}%`
   )
   .join('\n')}
 
-NHIỆM VỤ BẮT BUỘC CỦA BẠN:
-1. Phân tích yêu cầu "${userRequest}" dựa trên thành phần đang có và tính chất hóa học (độ bay hơi, áp suất hơi, khối lượng phân tử, nhóm chức terpene/alcohol/ester/sesquiterpene, liên kết hydro).
-2. Đề xuất tỉ lệ phối trộn mới (newPercentage) cho đúng 6 slot (top1, top2, heart1, heart2, base1, base2) trong hỗn hợp cốt hương liệu sao cho TỔNG CẢ 6 NGUYÊN LIỆU BẮT BUỘC BẰNG ĐÚNG 100%.
-3. Giải thích rõ lý do điều chỉnh từng nguyên liệu (vì sao tăng/giảm và vai trò hóa học/khứu giác).
-4. Đưa ra "olfactoryPredictionHypothesis" (Dự đoán sự thay đổi về mùi hương): Phải thể hiện rõ đây là GIẢ THUYẾT DỰ ĐOÁN dựa trên lý thuyết bay hơi và tương tác phân tử, KHÔNG khẳng định tuyệt đối như kết quả thực nghiệm đã chứng minh.
-5. Cung cấp gợi ý cơ sở Hóa học ("chemistryKnowledgeHint") và gợi ý thực nghiệm đối chứng ("experimentVerificationHint") để học sinh thảo luận, phản biện và kiểm chứng.
-6. YÊU CẦU ĐẶC BIỆT BẮT BUỘC CHO ĐẦU RA ÂM THANH ("spokenResponse"):
-   - Trường "spokenResponse" là văn bản sẽ được hệ thống trực tiếp chuyển thành ÂM THANH GIỌNG NÓI phát qua loa cho người dùng.
-   - BẮT BUỘC TRẢ LỜI CỰC KỲ NGẮN GỌN (CHỈ 1 ĐẾN 2 CÂU NGẮN, TỐI ĐA 30 TỪ).
-   - Đi thẳng vào kết quả điều chỉnh nốt hương theo yêu cầu của người dùng, tự nhiên và súc tích.
-   - TUYỆT ĐỐI KHÔNG DÀI DÒNG, TUYỆT ĐỐI KHÔNG NÓI CÁC CÂU RÀO ĐÓN NHƯ: "Nói hoàn toàn bằng tiếng Việt", "Tôi xin phép trả lời bằng tiếng Việt", hay giải thích việc đã đổi ngôn ngữ. Coi việc nói tiếng Việt tự nhiên là hiển nhiên và bắt buộc phải làm, không cần nói ra.
-   - Tuyệt đối không gắn nhãn hay phân bua về việc thay đổi công thức.`;
+Inactive 0% Slots (MUST STAY 0% — NOT in current formula):
+${(ingredients || [])
+  .filter((i: any) => (i.percentage || 0) === 0)
+  .map((i: any) => `  - Slot [${i.slotKey}] "${i.name}": 0% (MUST STAY 0%)`)
+  .join('\n') || '  (none)'}
+
+STRICT RULES (NO EXCEPTIONS):
+1. IMMUTABLE INGREDIENT LIST: You MUST keep the exact same list of active ingredients provided above. Keep all inactive 0% slots at 0%.
+2. DO NOT ADD OR REMOVE: Never add new ingredients, base notes, fixatives, or solvents, and never delete existing active ones unless the user explicitly commands "add [ingredient]" or "remove [ingredient]".
+3. ONLY ADJUST QUANTITIES: Modify ONLY the numerical percentage (newPercentage >= 1) of the active ingredients so the sum equals 100%.
+4. HANDLE AMBIGUITY: If the user mentions an ingredient that is NOT in the active ingredients list (for example asking to adjust "Jasmine" or "Lavender" when it does not exist in Active Ingredients above), do NOT add it and do NOT modify other ingredients. Instead set isUnchanged = true, keep EVERY ingredient's newPercentage IDENTICAL to its original Current Amount, and explain clearly in Vietnamese inside spokenResponse and analysisSummary that the requested ingredient is not in the current formula.
+
+LANGUAGE & AUDIO REQUIREMENTS:
+- Write spokenResponse, analysisSummary, and all explanations naturally in Vietnamese.
+- "spokenResponse" must be concise (1-2 sentences, max 30 words) directly suitable for Vietnamese TTS.`;
 
     const cacheKey = JSON.stringify({
+      v: 2,
       userRequest: userRequest.trim().toLowerCase(),
       season,
       totalVolume,
@@ -384,10 +423,14 @@ NHIỆM VỤ BẮT BUỘC CỦA BẠN:
     const responseSchema = {
       type: Type.OBJECT,
       properties: {
+        isUnchanged: {
+          type: Type.BOOLEAN,
+          description: 'True if a requested ingredient is not in the active formula and original numbers were kept unchanged.',
+        },
         spokenResponse: {
           type: Type.STRING,
           description:
-            'Câu trả lời tóm tắt ngắn gọn BẮT BUỘC LUÔN LUÔN 100% bằng TIẾNG VIỆT thuần túy để chuyển thành âm thanh giọng nói qua loa (TTS), tuyệt đối không dùng tiếng Anh.',
+            'Câu trả lời tóm tắt ngắn gọn 100% bằng TIẾNG VIỆT thuần túy để phát âm thanh TTS.',
         },
         analysisSummary: { type: Type.STRING },
         proposedPerfumeName: { type: Type.STRING },
@@ -428,6 +471,7 @@ NHIỆM VỤ BẮT BUỘC CỦA BẠN:
         },
       },
       required: [
+        'isUnchanged',
         'spokenResponse',
         'analysisSummary',
         'proposedPerfumeName',
@@ -476,6 +520,123 @@ NHIỆM VỤ BẮT BUỘC CỦA BẠN:
     });
   }
 });
+
+// Dedicated strict JSON precision adjustment endpoint returning ONLY { message, formula }
+app.post(
+  [
+    '/api/perfume/precision-adjust',
+    '/Floris/api/perfume/precision-adjust',
+    '/api/adjust-formula',
+    '/Floris/api/adjust-formula',
+  ],
+  async (req: Request, res: Response) => {
+    try {
+      const userRequest = req.body?.userInstruction || req.body?.userRequest || req.body?.request;
+      const currentFormula: PrecisionFormulaEntry[] = Array.isArray(req.body?.formula)
+        ? req.body.formula
+        : Array.isArray(req.body?.currentFormula)
+        ? req.body.currentFormula
+        : [];
+
+      if (!userRequest || typeof userRequest !== 'string') {
+        return res.status(400).json({ error: 'Missing userInstruction / userRequest string.' });
+      }
+      if (currentFormula.length === 0) {
+        return res.status(400).json({ error: 'Missing currentFormula / formula array.' });
+      }
+
+      const result = await handleStandalonePrecisionRequest(userRequest, currentFormula);
+      return res.json(result);
+    } catch (_error: any) {
+      const userRequest = String(req.body?.userInstruction || req.body?.userRequest || req.body?.request || '');
+      const currentFormula: PrecisionFormulaEntry[] = Array.isArray(req.body?.formula)
+        ? req.body.formula
+        : Array.isArray(req.body?.currentFormula)
+        ? req.body.currentFormula
+        : [];
+      return res.json(adjustStandalonePrecisionFormula(userRequest, currentFormula));
+    }
+  }
+);
+
+async function handleStandalonePrecisionRequest(
+  userRequest: string,
+  currentFormula: PrecisionFormulaEntry[]
+) {
+  const cmd = parseExplicitAddRemoveCommand(userRequest);
+  const missingCheck = checkMissingIngredients(
+    userRequest,
+    currentFormula.map((f, idx) => ({ id: `item_${idx}`, name: f.name, percentage: f.amount }))
+  );
+
+  if (missingCheck.hasMissingIngredient && !cmd.isExplicitAdd) {
+    return adjustStandalonePrecisionFormula(userRequest, currentFormula);
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return adjustStandalonePrecisionFormula(userRequest, currentFormula);
+  }
+
+  try {
+    const ai = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
+
+    const prompt = `You are a precision perfume formulation assistant. Your ONLY job is to adjust the proportions of an existing fragrance formula based on the user's request.
+
+CURRENT FORMULA:
+${JSON.stringify(currentFormula, null, 2)}
+
+USER REQUEST:
+"${userRequest}"
+
+STRICT RULES (NO EXCEPTIONS):
+1. IMMUTABLE INGREDIENT LIST: You MUST keep the exact same list of ingredients provided in the current formula.
+2. DO NOT ADD OR REMOVE: Never add new ingredients, base notes, fixatives, or solvents, and never delete existing ones unless the user explicitly commands "add [ingredient]" or "remove [ingredient]".
+3. ONLY ADJUST QUANTITIES: Modify only the numerical amount/percentage of the existing ingredients to reflect the user's request.
+4. HANDLE AMBIGUITY: If the user mentions an ingredient that is NOT in the current formula, do NOT add it. Instead, keep the original numbers unchanged and explain in the message field that the ingredient is not in the current formula.
+
+OUTPUT FORMAT:
+Return ONLY valid JSON matching:
+{
+  "message": "Brief explanation of the adjustment made",
+  "formula": [
+    { "name": "Exact Ingredient Name", "amount": 10 }
+  ]
+}`;
+
+    const schema = {
+      type: Type.OBJECT,
+      properties: {
+        message: { type: Type.STRING },
+        formula: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING },
+              amount: { type: Type.NUMBER },
+            },
+            required: ['name', 'amount'],
+          },
+        },
+      },
+      required: ['message', 'formula'],
+    };
+
+    const { text } = await generateJsonWithModelFallback(ai, prompt, schema);
+    const parsed = JSON.parse(text || '{}');
+    return normalizeStandalonePrecisionOutput(parsed, currentFormula, userRequest);
+  } catch {
+    return adjustStandalonePrecisionFormula(userRequest, currentFormula);
+  }
+}
 
 // 3. Audio Transcription Endpoint (Speech-to-Text via Gemini 3.5 Transcribe)
 app.post(['/api/perfume/transcribe', '/Floris/api/perfume/transcribe'], async (req: Request, res: Response) => {
@@ -641,456 +802,7 @@ app.get('/api/python/app1', (_req: Request, res: Response) => {
   }
 });
 
-function normalizeAdjustmentOutput(
-  parsed: any,
-  originalIngredients: any[],
-  totalVolume: number,
-  concentrationPercent: number
-) {
-  const pureFragranceMl = Number(((totalVolume * concentrationPercent) / 100).toFixed(2));
-  const carrierAlcoholMl = Number((totalVolume - pureFragranceMl).toFixed(2));
-  const rawList: any[] = Array.isArray(parsed.adjustedIngredients)
-    ? parsed.adjustedIngredients
-    : [];
 
-  // Map back to the 6 original slots
-  let mapped = originalIngredients.map((orig: any) => {
-    const found = rawList.find((r) => r.slotKey === orig.slotKey);
-    const newPct =
-      found && typeof found.newPercentage === 'number'
-        ? Math.max(2, Math.round(found.newPercentage))
-        : orig.percentage;
-    return {
-      slotKey: orig.slotKey,
-      tier: orig.tier,
-      tierLabel: orig.tierLabel,
-      id: orig.id,
-      name: orig.name,
-      scentFamily: orig.scentFamily,
-      oldPercentage: orig.percentage,
-      newPercentage: newPct,
-      ifraMaxPercent: orig.ifraMaxPercent ?? 5.0,
-      reason: found?.reason || 'Cân bằng tổng thể cấu trúc 3 tầng hương',
-    };
-  });
-
-  // Automated Program Validation Check: Ensure sum is strictly 100%
-  const rawAiSum = mapped.reduce((acc, item) => acc + item.newPercentage, 0);
-  const wasNormalized = rawAiSum !== 100;
-  if (rawAiSum !== 100 && mapped.length > 0) {
-    let running = 0;
-    mapped = mapped.map((item, idx) => {
-      if (idx === mapped.length - 1) {
-        return { ...item, newPercentage: Math.max(1, 100 - running) };
-      }
-      const scaled = Math.max(1, Math.round((item.newPercentage / rawAiSum) * 100));
-      running += scaled;
-      return { ...item, newPercentage: scaled };
-    });
-  }
-
-  const comparisonItems = mapped.map((item) => {
-    // Distinguish clearly:
-    // - item.oldPercentage / newPercentage: Tỉ lệ phối trộn trong cốt hương liệu nguyên chất (Tổng = 100%)
-    // - oldFinalProductConcPercent / newFinalProductConcPercent: Nồng độ trong sản phẩm nước hoa hoàn chỉnh (pha loãng trong cồn Ethanol)
-    // - oldVolMl / newVolMl: Thể tích tinh dầu nguyên chất thực tế (mL) = pureFragranceMl * pct / 100
-    const oldVolMl = Number(((pureFragranceMl * item.oldPercentage) / 100).toFixed(2));
-    const newVolMl = Number(((pureFragranceMl * item.newPercentage) / 100).toFixed(2));
-    const oldFinalProductConcPercent = Number(
-      ((item.oldPercentage * concentrationPercent) / 100).toFixed(2)
-    );
-    const newFinalProductConcPercent = Number(
-      ((item.newPercentage * concentrationPercent) / 100).toFixed(2)
-    );
-    const oldDrops = Math.max(1, Math.round(oldVolMl * 20));
-    const newDrops = Math.max(1, Math.round(newVolMl * 20));
-    return {
-      ...item,
-      deltaPercentage: item.newPercentage - item.oldPercentage,
-      oldFinalProductConcPercent,
-      newFinalProductConcPercent,
-      oldVolumeMl: oldVolMl,
-      newVolumeMl: newVolMl,
-      oldDrops,
-      newDrops,
-    };
-  });
-
-  const newTierTotals = {
-    top: comparisonItems
-      .filter((i) => i.tier === 'top')
-      .reduce((a, b) => a + b.newPercentage, 0),
-    heart: comparisonItems
-      .filter((i) => i.tier === 'heart')
-      .reduce((a, b) => a + b.newPercentage, 0),
-    base: comparisonItems
-      .filter((i) => i.tier === 'base')
-      .reduce((a, b) => a + b.newPercentage, 0),
-  };
-
-  const validatedSum = comparisonItems.reduce((a, b) => a + b.newPercentage, 0);
-
-  return {
-    spokenResponse:
-      parsed.spokenResponse ||
-      'Mình đã phân tích yêu cầu của bạn, kiểm tra tự động tổng tỉ lệ đạt chuẩn 100% và tính toán phương án điều chỉnh. Mời nhóm học sinh và người tham quan đối chiếu công thức gốc với công thức đề xuất trên màn hình!',
-    analysisSummary:
-      parsed.analysisSummary ||
-      'Công thức đã được tái cân bằng dựa trên yêu cầu cảm quan và cơ sở độ bay hơi của 3 tầng hương.',
-    proposedPerfumeName: parsed.proposedPerfumeName || 'Phiên Bản Cải Tiến AI',
-    highlightChanges: Array.isArray(parsed.highlightChanges) ? parsed.highlightChanges : [],
-    olfactoryPredictionHypothesis: parsed.olfactoryPredictionHypothesis || {
-      overallChange:
-        'Giả thuyết dự đoán: Mùi hương chuyển dịch rõ theo hướng yêu cầu của người dùng nhờ thay đổi tỉ lệ áp suất hơi riêng phần giữa các tầng hương.',
-      topStage:
-        '0–20 phút đầu: Các hợp chất monoterpene/ester dễ bay hơi khuếch tán nhanh, tạo ấn tượng mở đầu rõ nét hơn.',
-      heartStage:
-        '20 phút – 3 giờ: Các hợp chất terpene alcohol ở tầng giữa duy trì bản sắc chủ đạo nhưng cân bằng hơn.',
-      baseStage:
-        'Sau 3 giờ: Các phân tử sesquiterpene và xạ hương khối lượng phân tử lớn giữ vai trò định hương (fixative) trên giấy thử.',
-    },
-    studentReviewHints: parsed.studentReviewHints || {
-      reasonableHint:
-        'Đề xuất của AI hợp lý về mặt cấu trúc mùi hương vì đã điều chỉnh đúng nhóm nguyên liệu chịu trách nhiệm cho sắc thái mùi mà người dùng yêu cầu, đồng thời vẫn giữ nguyên bộ khung 6 nguyên liệu gốc và đảm bảo tổng tỉ lệ 100%.',
-      chemistryKnowledgeHint:
-        'Giải thích dựa trên độ bay hơi (volatility), khối lượng phân tử (M) và liên kết liên phân tử: Tinh dầu tầng đầu chứa nhiều hydrocarbon monoterpene (như Limonene, M=136 g/mol) ít phân cực nên áp suất hơi cao, bay hơi nhanh; tầng giữa chứa alcohol thơm (Citronellol, Geraniol có nhóm -OH) tạo liên kết hydro trung bình; tầng cuối chứa sesquiterpene alcohol (Santalol, M=220 g/mol) và vòng macrocyclic có khối lượng phân tử lớn, làm giảm áp suất hơi riêng phần (theo định luật Raoult) và giữ mùi lâu hơn.',
-      experimentVerificationHint:
-        'Pha 2 mẫu đối chứng quy mô nhỏ (5 mL hoặc 10 mL) trong cùng dung môi Ethanol 96° (tỉ lệ 18% cốt hương : 82% cồn): Mẫu A (Công thức gốc) và Mẫu B (Công thức AI đề xuất). Nhỏ lên 2 que giấy thử mùi (blotter) có đánh mã số ẩn (thử mù đôi - blind test) và đánh giá mùi ở 3 mốc thời gian: sau 15 phút (Tầng đầu), sau 2 giờ (Tầng giữa) và sau 6 giờ (Tầng cuối).',
-    },
-    validationReport: {
-      rawAiSum,
-      validatedSum,
-      wasNormalized,
-      isValid100: validatedSum === 100,
-      pureFragranceMl,
-      carrierAlcoholMl,
-      concentrationPercent,
-      concentrationDistinctionNote: `Tổng tỉ lệ phối trộn trong hỗn hợp cốt hương liệu = ${validatedSum}%. Khi pha vào chai ${totalVolume} mL ở nồng độ ${concentrationPercent}%, tổng lượng cốt tinh dầu là ${pureFragranceMl} mL và dung môi cồn Ethanol 96° là ${carrierAlcoholMl} mL.`,
-    },
-    comparisonItems,
-    newTierTotals,
-  };
-}
-
-function generateLocalAdjustment(
-  userRequest: string,
-  _season: string,
-  totalVolume: number,
-  concentrationPercent: number,
-  ingredients: any[] = [],
-  _tierTotals: any = {}
-) {
-  const q = userRequest.toLowerCase();
-  const wantFresher =
-    q.includes('tươi mát') ||
-    q.includes('mát hơn') ||
-    q.includes('sảng khoái') ||
-    q.includes('cam') ||
-    q.includes('chanh') ||
-    q.includes('lê') ||
-    q.includes('bergamot');
-  const wantClearerFloral =
-    q.includes('hương hoa rõ') ||
-    q.includes('hoa rõ hơn') ||
-    q.includes('nhiều hoa') ||
-    (q.includes('hoa') && !q.includes('giảm'));
-  const wantLessStrong =
-    q.includes('giảm cảm giác nồng') ||
-    q.includes('giảm nồng') ||
-    q.includes('dịu') ||
-    q.includes('ít ngọt') ||
-    q.includes('nhẹ');
-  const wantMoreWoody =
-    q.includes('tăng sắc thái hương gỗ') ||
-    q.includes('hương gỗ') ||
-    q.includes('gỗ') ||
-    q.includes('trầm') ||
-    q.includes('ấm') ||
-    q.includes('lưu hương');
-  const wantSubtleVariationKeepSignature =
-    q.includes('giữ đặc trưng') ||
-    q.includes('thay đổi mùi nhưng') ||
-    q.includes('biến tấu');
-
-  // Identify dynamic names from the current 6 slots (Floris Spring: Hoa nhài, Đào, Xạ hương trắng, Vanilla)
-  const findSlotName = (slotKey: string, fallback: string) =>
-    ingredients.find((i: any) => i.slotKey === slotKey)?.name || fallback;
-
-  const top1Name = findSlotName('top1', 'Hoa nhài 🌼');
-  const top2Name = findSlotName('top2', 'Hoa nhài Trắng 🌼');
-  const heart1Name = findSlotName('heart1', 'Đào 🍑');
-  const heart2Name = findSlotName('heart2', 'Đào Mùa Xuân 🍑');
-  const base1Name = findSlotName('base1', 'Xạ hương trắng 🤍');
-  const base2Name = findSlotName('base2', 'Vanilla 🍦');
-
-  const rawAdjusted = ingredients.map((ing: any) => {
-    let pct = ing.percentage || 15;
-    let reason = 'Giữ tỉ lệ nền ổn định cho cấu trúc kim tự tháp hương';
-
-    if (wantFresher) {
-      // Matches Mẫu B - Tươi hơn: Tăng Hoa nhài lên 30%, Đào 20%, Xạ hương 25%, Vanilla 25%
-      if (ing.slotKey === 'top1') {
-        pct = 30;
-        reason = `Tăng tỉ lệ ${ing.name} lên 30% để bung tỏa hương hoa trắng thanh mát ngay khi xịt.`;
-      } else if (ing.slotKey === 'heart1') {
-        pct = 20;
-        reason = `Duy trì ${ing.name} ở 20% giúp hương trái cây mọng nước chuyển tiếp nhẹ nhàng.`;
-      } else if (ing.slotKey === 'base1' || ing.slotKey === 'base2') {
-        pct = 25;
-        reason = `Giữ ${ing.name} ở 25% bảo toàn độ ấm và khả năng định hương.`;
-      } else {
-        pct = 0;
-        reason = 'Khe hương dự phòng.';
-      }
-    } else if (wantClearerFloral) {
-      if (ing.slotKey === 'heart1') {
-        pct = 35;
-        reason = `Tăng nốt ${ing.name} lên 35% để hương đào ngọt dịu bung tỏa rõ nét ở tầng giữa.`;
-      } else if (ing.slotKey === 'top1') {
-        pct = 25;
-        reason = `Điều tiết ${ing.name} ở mức 25% nhường không gian cho hương đào.`;
-      } else if (ing.slotKey === 'base1') {
-        pct = 20;
-        reason = `Duy trì ${ing.name} 20% giữ độ sạch sẽ, thanh khiết.`;
-      } else if (ing.slotKey === 'base2') {
-        pct = 20;
-        reason = `Duy trì ${ing.name} 20% tạo hậu vị ngọt ấm.`;
-      } else {
-        pct = 0;
-        reason = 'Khe hương dự phòng.';
-      }
-    } else if (wantLessStrong) {
-      if (ing.slotKey === 'base2') {
-        pct = 15;
-        reason = `Giảm nhẹ ${ing.name} xuống 15% để bớt vị ngọt đậm.`;
-      } else if (ing.slotKey === 'top1') {
-        pct = 35;
-        reason = `Tăng ${ing.name} lên 35% giúp không gian hương thoáng đãng, trong trẻo.`;
-      } else if (ing.slotKey === 'heart1') {
-        pct = 25;
-        reason = `Duy trì ${ing.name} 25% tạo nét thanh thoát.`;
-      } else if (ing.slotKey === 'base1') {
-        pct = 25;
-        reason = `Duy trì ${ing.name} 25% tạo độ êm dịu trên da.`;
-      } else {
-        pct = 0;
-        reason = 'Khe hương dự phòng.';
-      }
-    } else if (wantMoreWoody) {
-      // Matches Mẫu C - Dịu ngọt / lưu hương: Tăng Xạ hương 30%, Vanilla 30%, Nhài 20%, Đào 20%
-      if (ing.slotKey === 'base1' || ing.slotKey === 'base2') {
-        pct = 30;
-        reason = `Tăng ${ing.name} lên 30% để tăng độ ấm êm, ngọt dịu và lưu hương lâu dài.`;
-      } else if (ing.slotKey === 'top1' || ing.slotKey === 'heart1') {
-        pct = 20;
-        reason = `Điều tiết ${ing.name} về 20% tạo sự chuyển tiếp hài hòa sang tầng cuối.`;
-      } else {
-        pct = 0;
-        reason = 'Khe hương dự phòng.';
-      }
-    } else if (wantSubtleVariationKeepSignature) {
-      if (ing.slotKey === 'top1') {
-        pct = 40;
-        reason = 'Giữ nốt Hoa nhài mở đầu thanh khiết đặc trưng của Floris.';
-      } else if (ing.slotKey === 'heart1') {
-        pct = 30;
-        reason = 'Giữ nốt Đào mọng nước tạo điểm nhấn mùa xuân.';
-      } else if (ing.slotKey === 'base1') {
-        pct = 15;
-        reason = 'Giữ Xạ hương trắng sạch sẽ, mềm mại.';
-      } else if (ing.slotKey === 'base2') {
-        pct = 15;
-        reason = 'Giữ Vanilla ngọt ấm lưu luyến.';
-      } else {
-        pct = 0;
-        reason = 'Khe hương dự phòng.';
-      }
-    } else {
-      if (ing.slotKey === 'top1') {
-        pct = 35;
-        reason = `Cân chỉnh ${ing.name} theo yêu cầu cảm quan.`;
-      } else if (ing.slotKey === 'heart1') {
-        pct = 25;
-        reason = `Cân chỉnh ${ing.name} hài hòa tầng giữa.`;
-      } else if (ing.slotKey === 'base1') {
-        pct = 20;
-        reason = `Duy trì ${ing.name} định hương.`;
-      } else if (ing.slotKey === 'base2') {
-        pct = 20;
-        reason = `Duy trì ${ing.name} ngọt dịu.`;
-      } else {
-        pct = 0;
-        reason = 'Khe hương dự phòng.';
-      }
-    }
-
-    return {
-      slotKey: ing.slotKey,
-      newPercentage: pct,
-      reason,
-    };
-  });
-
-  let spokenResponse = '';
-  let analysisSummary = '';
-  let proposedPerfumeName = 'Floris Mùa Xuân (Bản Tinh Chỉnh)';
-  let highlightChanges: string[] = [];
-  let olfactoryPredictionHypothesis = {
-    overallChange:
-      'Mùi hương chuyển dịch cân bằng theo đúng yêu cầu cảm quan của bạn.',
-    topStage: `Giai đoạn đầu: Hương ${top1Name} khuếch tán thanh thoát, tươi mới.`,
-    heartStage: `Giai đoạn giữa: Hương ${heart1Name} mọng nước lan tỏa nhẹ nhàng.`,
-    baseStage: `Giai đoạn cuối: Nền ${base1Name} và ${base2Name} lưu lại êm dịu, ấm áp.`,
-  };
-  let studentReviewHints = {
-    reasonableHint:
-      'Đề xuất đã điều chỉnh đúng nhóm hương liên quan, đảm bảo tổng tỉ lệ phối trộn đúng 100%.',
-    chemistryKnowledgeHint:
-      'Các phân tử hương đầu bay hơi nhanh, hương giữa duy trì 2–4 giờ, và các phân tử tầng cuối khối lượng lớn đóng vai trò chất định hương tự nhiên.',
-    experimentVerificationHint: `Pha mẫu thử nghiệm ${totalVolume} mL theo công thức mới, nhỏ lên que thử và theo dõi cảm quan sau 24h, 48h, 72h.`,
-  };
-
-  if (wantFresher) {
-    proposedPerfumeName = 'Floris — Mẫu B (Tươi Hơn)';
-    spokenResponse = `Đã điều chỉnh tăng hương hoa nhài lên 30% để mùi hương tươi sáng và thanh thoát hơn ngay khi xịt.`;
-    analysisSummary = `Tăng nốt Hoa nhài lên 30% (tương ứng chuẩn Mẫu B), giữ Đào 20%, Xạ hương trắng 25% và Vanilla 25%.`;
-    highlightChanges = [
-      `Tăng ${top1Name} lên 30% giúp mở đầu thanh mát, rạng rỡ`,
-      `Cân đối ${heart1Name} 20%, ${base1Name} 25% và ${base2Name} 25%`,
-      'Tổng tỉ lệ phối trộn đạt chính xác 100%',
-    ];
-    olfactoryPredictionHypothesis = {
-      overallChange:
-        'Hương thơm trở nên tươi sáng, thanh thoát và bừng sức sống mùa xuân rõ rệt.',
-      topStage: `0–25 phút: Benzyl acetate trong ${top1Name} bay hơi nhanh, tỏa hương hoa trắng thanh mát.`,
-      heartStage: `25 phút – 2.5 giờ: Hương ${heart1Name} chuyển tiếp nhẹ nhàng, không bị nồng.`,
-      baseStage: `Sau 2.5 giờ: Lớp nền ${base1Name} và ${base2Name} giữ độ lưu hương êm dịu.`,
-    };
-    studentReviewHints = {
-      reasonableHint:
-        'Trùng khớp với phương án Mẫu B (Tươi hơn): tăng hương hoa nhài mở đầu.',
-      chemistryKnowledgeHint:
-        'Hương hoa nhài chứa Benzyl acetate và Linalool có áp suất hơi cao, giúp khuếch tán nhanh vào không khí.',
-      experimentVerificationHint:
-        'So sánh trực tiếp Mẫu A và Mẫu B trên giấy thử sau 15 phút và sau 24h–72h ủ mẫu.',
-    };
-  } else if (wantClearerFloral) {
-    proposedPerfumeName = 'Floris — Hương Đào Rõ Nét';
-    spokenResponse = `Đã nâng nốt đào lên 35% để hương trái cây ngọt dịu và tươi tắn nổi bật hơn ở tầng giữa.`;
-    analysisSummary = `Tăng nốt Đào lên 35%, điều tiết Hoa nhài 25%, Xạ hương trắng 20% và Vanilla 20%.`;
-    highlightChanges = [
-      `Tăng ${heart1Name} lên 35% giúp hương đào bung tỏa mọng nước`,
-      'Tổng tỉ lệ phối trộn kiểm tra tự động đạt đúng 100%',
-    ];
-    olfactoryPredictionHypothesis = {
-      overallChange: `Sắc thái quả đào mọng nước của ${heart1Name} tỏa rõ và đầy đặn hơn từ phút thứ 15.`,
-      topStage: `0–15 phút: Hương ${top1Name} mở màn thanh nhẹ.`,
-      heartStage: `15 phút – 3.5 giờ: Lactone đào lan tỏa ngọt dịu, trẻ trung.`,
-      baseStage: `Sau 3.5 giờ: Hòa quyện êm ái cùng ${base1Name} và ${base2Name}.`,
-    };
-    studentReviewHints = {
-      reasonableHint: `Tăng nồng độ ${heart1Name} giúp làm nổi bật chủ đề hương trái cây mùa xuân.`,
-      chemistryKnowledgeHint: `Lactone đào bay hơi ở tốc độ trung bình, duy trì hương thơm bền bỉ suốt giai đoạn giữa.`,
-      experimentVerificationHint:
-        'Thử ngửi mù đôi trên que giấy thử ở mốc 30 phút để đánh giá độ nổi bật của nốt đào.',
-    };
-  } else if (wantLessStrong) {
-    proposedPerfumeName = 'Floris — Hương Dịu Nhẹ';
-    spokenResponse = `Đã giảm bớt vị ngọt đậm và tăng hoa nhài lên 35% để mùi hương nhẹ nhàng, thoáng đãng hơn.`;
-    analysisSummary = `Giảm nốt ngọt đậm, tăng Hoa nhài lên 35% và giữ Xạ hương trắng 25% để không gian hương trong trẻo.`;
-    highlightChanges = [
-      `Tăng ${top1Name} lên 35% tạo cảm giác thanh mát, dễ chịu`,
-      `Giảm nhẹ ${base2Name} giúp hậu vị thanh thoát`,
-      'Tổng tỉ lệ đạt chuẩn 100%',
-    ];
-    olfactoryPredictionHypothesis = {
-      overallChange:
-        'Mùi hương trở nên thanh nhẹ, thoáng đãng và ôm sát da nhẹ nhàng.',
-      topStage: `0–25 phút: Mở đầu thanh tao, không nồng gắt.`,
-      heartStage: `25 phút – 2.5 giờ: Lớp hương đào mỏng nhẹ như sương mai.`,
-      baseStage: `Sau 2.5 giờ: Hậu vị sạch sẽ, êm ái nhờ ${base1Name}.`,
-    };
-    studentReviewHints = {
-      reasonableHint:
-        'Giảm bớt hợp chất thơm đậm đặc giúp làm dịu cảm giác nồng khứu giác.',
-      chemistryKnowledgeHint:
-        'Giảm phân số mol của vanillin làm giảm áp suất hơi riêng phần của nó theo định luật Raoult.',
-      experimentVerificationHint:
-        'Đối chiếu mẫu gốc và mẫu giảm nồng trên cổ tay sau 30 phút.',
-    };
-  } else if (wantMoreWoody) {
-    proposedPerfumeName = 'Floris — Mẫu C (Dịu Ngọt & Lưu Hương Sâu)';
-    spokenResponse = `Đã nâng xạ hương trắng và vanilla lên 30% mỗi loại để tăng độ ấm êm và lưu hương lâu hơn.`;
-    analysisSummary = `Tăng Xạ hương trắng và Vanilla lên 30% mỗi loại (tương ứng Mẫu C), giữ Hoa nhài 20% và Đào 20%.`;
-    highlightChanges = [
-      `Nâng ${base1Name} và ${base2Name} lên 30% mỗi loại giúp lưu hương sâu bền`,
-      `Điều chỉnh ${top1Name} và ${heart1Name} về 20% mỗi loại`,
-      'Tăng khả năng định hương tự nhiên (fixative)',
-    ];
-    olfactoryPredictionHypothesis = {
-      overallChange:
-        'Mùi hương trở nên ấm êm, ngọt dịu và lưu lại bền bỉ trên da suốt nhiều giờ.',
-      topStage: `0–15 phút: ${top1Name} vẫn giữ độ mở tươi tắn vừa vặn.`,
-      heartStage: `15 phút – 3 giờ: Hương đào quyện chặt với nền xạ hương và vanilla.`,
-      baseStage: `Sau 3 giờ: Sắc thái ngọt dịu, sạch sẽ lưu lại bền bỉ.`,
-    };
-    studentReviewHints = {
-      reasonableHint:
-        'Trùng khớp với phương án Mẫu C: nâng tầng cuối để tăng độ lưu hương và độ êm dịu.',
-      chemistryKnowledgeHint:
-        'Xạ hương vòng lớn và vanillin có nhiệt độ sôi cao, áp suất hơi thấp, đóng vai trò chất định hương giúp toàn bộ hệ hương bay hơi chậm rãi.',
-      experimentVerificationHint:
-        'Đối chiếu độ lưu hương của Mẫu A và Mẫu C trên giấy thử sau 6 giờ và sau 24h–72h.',
-    };
-  } else if (wantSubtleVariationKeepSignature) {
-    proposedPerfumeName = 'Floris — Mùa Xuân Thanh Nhã';
-    spokenResponse = `Đã cân bằng công thức để làm nổi bật nét ngọt dịu của hoa nhài và đào mà vẫn giữ trọn linh hồn mùa xuân.`;
-    analysisSummary = `Bảo toàn cấu trúc Floris Mùa Xuân: Hoa nhài mở đầu, Đào ở giữa và Xạ hương trắng + Vanilla lắng đọng.`;
-    highlightChanges = [
-      `Tôn vinh nét thanh thoát của ${top1Name} và ${heart1Name}`,
-      `Bảo tồn nền định hương êm ái của ${base1Name} và ${base2Name}`,
-      'Tổng tỉ lệ phối trộn đạt đúng 100%',
-    ];
-    olfactoryPredictionHypothesis = {
-      overallChange:
-        'Mùi hương giữ trọn vẹn bản sắc trong trẻo của Floris với điểm nhấn hoa quả mùa xuân tươi mới.',
-      topStage: `0–20 phút: Hương hoa nhài thanh khiết mở lối.`,
-      heartStage: `20 phút – 3 giờ: Nét ngọt dịu của đào bung tỏa tự nhiên.`,
-      baseStage: 'Sau 3 giờ: Nền xạ hương và vani lưu lại ấm áp, khó quên.',
-    };
-    studentReviewHints = {
-      reasonableHint:
-        'Giữ vững tỉ lệ các tầng hương giúp bảo toàn chữ ký mùi hương đặc trưng của nhóm.',
-      chemistryKnowledgeHint:
-        'Đường cong bay hơi phân đoạn được duy trì liên tục và mượt mà.',
-      experimentVerificationHint:
-        'Thử nghiệm cảm quan so sánh để đánh giá độ hài hòa của các nốt hương.',
-    };
-  } else {
-    spokenResponse = `Đã điều chỉnh công thức nước hoa Floris theo yêu cầu của bạn, đảm bảo tổng tỉ lệ đạt chuẩn 100%.`;
-    analysisSummary = `Điều chỉnh công thức Floris đáp ứng yêu cầu "${userRequest}", tổng tỉ lệ phối trộn đạt 100%.`;
-    highlightChanges = [
-      `Tinh chỉnh theo yêu cầu: "${userRequest}"`,
-      'Tổng tỉ lệ phối trộn đạt đúng 100%',
-      'Cân đối độ bay hơi giữa các tầng hương',
-    ];
-  }
-
-  return normalizeAdjustmentOutput(
-    {
-      spokenResponse,
-      analysisSummary,
-      proposedPerfumeName,
-      olfactoryPredictionHypothesis,
-      studentReviewHints,
-      highlightChanges,
-      adjustedIngredients: rawAdjusted,
-    },
-    ingredients,
-    totalVolume,
-    concentrationPercent
-  );
-}
 
 async function startServer() {
   app.get(['/Floris', '/Floris/*'], (req: Request, res: Response, next) => {

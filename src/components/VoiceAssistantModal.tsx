@@ -20,46 +20,9 @@ import {
   safeRequestPerfumeAdjustment,
   safeRequestTTS,
   speakWithBrowserSynthesis,
+  AIAdjustmentResult,
 } from '../utils/aiPerfumeEngine';
 import { SpringAccordion } from './SpringAccordion';
-
-interface ComparisonItem {
-  slotKey: FormulaSlot['key'];
-  tier: 'top' | 'heart' | 'base';
-  tierLabel: string;
-  id: string;
-  name: string;
-  scentFamily: string;
-  oldPercentage: number;
-  newPercentage: number;
-  deltaPercentage: number;
-  oldVolumeMl: number;
-  newVolumeMl: number;
-  oldDrops: number;
-  newDrops: number;
-  reason: string;
-}
-
-interface AIAdjustmentResult {
-  spokenResponse: string;
-  analysisSummary: string;
-  proposedPerfumeName: string;
-  highlightChanges: string[];
-  comparisonItems: ComparisonItem[];
-  newTierTotals: { top: number; heart: number; base: number };
-  olfactoryPredictionHypothesis?: {
-    overallChange?: string;
-    topStage?: string;
-    heartStage?: string;
-    baseStage?: string;
-  };
-  studentReviewHints?: {
-    reasonableHint?: string;
-    chemistryKnowledgeHint?: string;
-    experimentVerificationHint?: string;
-  };
-  source?: string;
-}
 
 interface VoiceAssistantModalProps {
   isOpen: boolean;
@@ -115,6 +78,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const silenceTimerRef = useRef<any>(null);
   const lastTranscriptRef = useRef<string>('');
+  const promptInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const stopSpeaking = useCallback(() => {
     if (audioPlayerRef.current) {
@@ -319,14 +283,8 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
         } catch {}
       }
 
-      const spokenQuery = (lastTranscriptRef.current || userRequest || interimText || '').trim();
-      if (spokenQuery) {
-        handleAnalyzeVoiceRequest(spokenQuery);
-      } else {
-        const defaultPrompt = 'Tôi muốn mùi hoa nhài ở đầu thanh thoát và tươi mát hơn.';
-        setUserRequest(defaultPrompt);
-        handleAnalyzeVoiceRequest(defaultPrompt);
-      }
+      setVoiceStatusText('Đã dừng nghe — hãy kiểm tra hoặc sửa lỗi chính tả rồi bấm "Gửi".');
+      setTimeout(() => promptInputRef.current?.focus(), 0);
       return;
     }
 
@@ -342,41 +300,25 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
       try {
         const recognition = new SpeechRecognitionAPI();
         recognition.lang = 'vi-VN';
-        recognition.continuous = true;
+        recognition.continuous = false;
         recognition.interimResults = true;
         recognition.maxAlternatives = 1;
 
         recognition.onstart = () => {
           setIsListening(true);
-          setVoiceStatusText('Đang nghe... Chạm lại mic để phân tích');
+          setVoiceStatusText('Đang nghe... Nói xong hệ thống sẽ đưa chữ vào ô để bạn sửa trước khi gửi.');
           startAudioAnalyser();
         };
 
         recognition.onresult = (event: any) => {
-          let finalTranscript = '';
-          let currentInterim = '';
-
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcript = event.results[i][0].transcript;
-            if (event.results[i].isFinal) {
-              finalTranscript += transcript;
-            } else {
-              currentInterim += transcript;
-            }
-          }
-
-          if (finalTranscript) {
-            setUserRequest((prev) => {
-              const updated = prev ? `${prev} ${finalTranscript}` : finalTranscript;
-              lastTranscriptRef.current = updated;
-              return updated;
-            });
+          const transcript = Array.from(event.results || [])
+            .map((res: any) => res?.[0]?.transcript || '')
+            .join('')
+            .trim();
+          if (transcript) {
+            setUserRequest(transcript);
             setInterimText('');
-          } else {
-            setInterimText(currentInterim);
-            if (currentInterim) {
-              lastTranscriptRef.current = (userRequest ? `${userRequest} ${currentInterim}` : currentInterim).trim();
-            }
+            lastTranscriptRef.current = transcript;
           }
         };
 
@@ -384,13 +326,15 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
           if (err.error !== 'no-speech') {
             setIsListening(false);
             stopAudioAnalyser();
-            setVoiceStatusText('Chạm lại mic hoặc chọn gợi ý mẫu.');
+            setVoiceStatusText('Chạm lại mic hoặc sửa trực tiếp trong ô văn bản.');
           }
         };
 
         recognition.onend = () => {
           setIsListening(false);
           stopAudioAnalyser();
+          setVoiceStatusText('Đã ghi nhận — bạn có thể sửa lỗi chính tả rồi bấm "Gửi".');
+          setTimeout(() => promptInputRef.current?.focus(), 0);
         };
 
         recognitionRef.current = recognition;
@@ -525,10 +469,12 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
 
               <div className="relative">
                 <textarea
+                  ref={promptInputRef}
                   rows={2}
-                  value={userRequest + (interimText ? ` [${interimText}...]` : '')}
+                  value={userRequest}
                   onChange={(e) => {
                     setUserRequest(e.target.value);
+                    lastTranscriptRef.current = e.target.value;
                     setInterimText('');
                   }}
                   placeholder="Nói hoặc nhập yêu cầu (VD: Muốn hoa nhài tươi mát hơn)..."
@@ -686,9 +632,17 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
                   </div>
                 </div>
 
-                {/* Compact Ratio Bars for Each Changed Ingredient */}
+                {adjustmentResult.isUnchanged && (
+                  <div className="p-3 rounded-2xl bg-[#FFFDF0] border border-[#FCD34D] text-xs font-semibold text-[#92400E]">
+                    ⚠️ {adjustmentResult.message || adjustmentResult.analysisSummary}
+                  </div>
+                )}
+
+                {/* Compact Ratio Bars for Each Active Ingredient */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {adjustmentResult.comparisonItems.map((item) => (
+                  {adjustmentResult.comparisonItems
+                    .filter((item) => item.oldPercentage > 0 || item.newPercentage > 0)
+                    .map((item) => (
                     <div
                       key={item.slotKey}
                       className="p-3 rounded-2xl bg-[#FFFDF8] border border-[#F3DCE4] space-y-1.5 text-xs"
@@ -731,7 +685,9 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#FEF3C7]">
-                        {adjustmentResult.comparisonItems.map((item) => (
+                        {adjustmentResult.comparisonItems
+                          .filter((item) => item.oldPercentage > 0 || item.newPercentage > 0)
+                          .map((item) => (
                           <tr key={item.slotKey}>
                             <td className="py-2 px-2 font-bold">{item.name}</td>
                             <td className="py-2 px-2 text-center font-mono">{item.oldPercentage}%</td>

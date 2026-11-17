@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Sparkles, Droplets } from 'lucide-react';
+import { Sparkles, Droplets, Box, Square } from 'lucide-react';
 import { CalculatedIngredient } from '../utils/perfumeCalculations';
 import { getScentFamilyVisual } from './SpringDecorations';
+import { FlorisBottle3D } from './bottle3d/FlorisBottle3D';
 
 interface SpringPerfumeBottleSVGProps {
   ingredients: CalculatedIngredient[];
@@ -11,6 +12,7 @@ interface SpringPerfumeBottleSVGProps {
   carrierAlcoholMl: number;
   perfumeName?: string;
   compact?: boolean;
+  defaultDimension?: '2d' | '3d';
 }
 
 const LAYER_PASTEL_PALETTE: Record<string, string> = {
@@ -35,7 +37,7 @@ function getSpringLayerColor(ing: CalculatedIngredient): string {
 }
 
 /**
- * Interactive visual Spring perfume bottle & stacked proportion bar.
+ * Interactive visual Spring perfume bottle (2D SVG & 3D WebGL toggle) & stacked proportion bar.
  * Fills bottom-to-top with pastel layers matching ingredient ratios (or Oil vs Solvent view).
  */
 export const SpringPerfumeBottleSVG: React.FC<SpringPerfumeBottleSVGProps> = ({
@@ -46,7 +48,9 @@ export const SpringPerfumeBottleSVG: React.FC<SpringPerfumeBottleSVGProps> = ({
   carrierAlcoholMl,
   perfumeName = 'Floris',
   compact = false,
+  defaultDimension = '2d',
 }) => {
+  const [dimensionMode, setDimensionMode] = useState<'2d' | '3d'>(defaultDimension);
   const [viewMode, setViewMode] = useState<'blend' | 'bottle'>('blend');
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
@@ -134,165 +138,225 @@ export const SpringPerfumeBottleSVG: React.FC<SpringPerfumeBottleSVGProps> = ({
           </div>
         </div>
 
-        <div className="inline-flex rounded-full bg-[#FFF5E8] p-1 border border-[#F6DCE5]">
-          <button
-            type="button"
-            onClick={() => setViewMode('blend')}
-            className={`px-3 py-1 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
-              viewMode === 'blend'
-                ? 'bg-white text-[#BE185D] shadow-xs'
-                : 'text-[#5C6B5F] hover:text-[#2B342D]'
-            }`}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {/* 2D <-> 3D Dimension Switcher */}
+          <div
+            role="group"
+            aria-label="Chế độ hiển thị 2D hoặc 3D"
+            className="inline-flex rounded-full bg-[#FCE7F3]/80 p-1 border border-[#F9A8D4]/70"
           >
-            Tỷ lệ hương
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode('bottle')}
-            className={`px-3 py-1 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
-              viewMode === 'bottle'
-                ? 'bg-white text-[#15803D] shadow-xs'
-                : 'text-[#5C6B5F] hover:text-[#2B342D]'
-            }`}
-          >
-            Cốt & Dung môi
-          </button>
+            <button
+              type="button"
+              onClick={() => setDimensionMode('2d')}
+              aria-pressed={dimensionMode === '2d'}
+              className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1 whitespace-nowrap ${
+                dimensionMode === '2d'
+                  ? 'bg-white text-[#BE185D] shadow-xs'
+                  : 'text-[#6B4A58] hover:text-[#2B342D]'
+              }`}
+            >
+              <Square className="w-3 h-3" />
+              <span>2D</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setDimensionMode('3d')}
+              aria-pressed={dimensionMode === '3d'}
+              className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1 whitespace-nowrap ${
+                dimensionMode === '3d'
+                  ? 'bg-gradient-to-r from-[#EC4899] to-[#F472B6] text-white shadow-xs'
+                  : 'text-[#6B4A58] hover:text-[#2B342D]'
+              }`}
+            >
+              <Box className="w-3 h-3" />
+              <span>3D</span>
+            </button>
+          </div>
+
+          {/* Composition View Mode Switcher */}
+          <div className="inline-flex rounded-full bg-[#FFF5E8] p-1 border border-[#F6DCE5]">
+            <button
+              type="button"
+              onClick={() => setViewMode('blend')}
+              className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+                viewMode === 'blend'
+                  ? 'bg-white text-[#BE185D] shadow-xs'
+                  : 'text-[#5C6B5F] hover:text-[#2B342D]'
+              }`}
+            >
+              Tỷ lệ hương
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('bottle')}
+              className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+                viewMode === 'bottle'
+                  ? 'bg-white text-[#15803D] shadow-xs'
+                  : 'text-[#5C6B5F] hover:text-[#2B342D]'
+              }`}
+            >
+              Cốt & Dung môi
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Bottle Visual + Layer Legend */}
       <div className={`grid ${compact ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-12'} gap-4 items-center`}>
-        {/* Inline SVG Perfume Bottle */}
-        <div className={`${compact ? '' : 'sm:col-span-5'} flex flex-col items-center justify-center relative`}>
-          <svg
-            viewBox="0 0 160 215"
-            className={compact ? 'w-36 h-48' : 'w-40 h-52 sm:w-44 sm:h-56'}
-            xmlns="http://www.w3.org/2000/svg"
-            role="img"
-            aria-label={`Minh họa chai nước hoa ${perfumeName} ${totalVolume} mL`}
-          >
-            <defs>
-              <clipPath id="bottleInteriorClip">
-                <rect x="30" y="64" width="100" height="126" rx="26" />
-              </clipPath>
-              <linearGradient id="glassShine" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.65" />
-                <stop offset="25%" stopColor="#FFFFFF" stopOpacity="0.15" />
-                <stop offset="85%" stopColor="#FFFFFF" stopOpacity="0.05" />
-                <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.45" />
-              </linearGradient>
-              <linearGradient id="capGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#FDE68A" />
-                <stop offset="100%" stopColor="#F59E0B" />
-              </linearGradient>
-            </defs>
-
-            {/* Wooden / Butter-Gold Rounded Cap */}
-            <rect x="62" y="14" width="36" height="24" rx="10" fill="url(#capGrad)" stroke="#D97706" strokeWidth="1.5" strokeOpacity="0.45" />
-            {/* Collar */}
-            <rect x="66" y="38" width="28" height="12" rx="4" fill="#FBCFE8" stroke="#EC4899" strokeWidth="1.2" strokeOpacity="0.5" />
-            {/* Bottle Neck */}
-            <path d="M58 50 H102 L106 60 H54 Z" fill="#FFFDF8" stroke="#EBC3D1" strokeWidth="1.5" />
-
-            {/* Outer Glass Body */}
-            <rect
-              x="25"
-              y="58"
-              width="110"
-              height="138"
-              rx="30"
-              fill="#FFFFFF"
-              stroke="#EBC3D1"
-              strokeWidth="2.5"
-            />
-
-            {/* Liquid Layers clipped to inner glass */}
-            <g clipPath="url(#bottleInteriorClip)">
-              <rect x="30" y="64" width="100" height="126" fill="#FFFBF5" />
-              {layers.map((layer) => (
-                <rect
-                  key={layer.key}
-                  x="28"
-                  y={layer.y}
-                  width="104"
-                  height={layer.height + 0.5}
-                  fill={layer.color}
-                  opacity={hoveredId && hoveredId !== layer.key ? 0.55 : 0.92}
-                  className="transition-all duration-300 cursor-pointer"
-                  onMouseEnter={() => setHoveredId(layer.key)}
-                  onMouseLeave={() => setHoveredId(null)}
-                  onClick={() => setHoveredId(hoveredId === layer.key ? null : layer.key)}
-                />
-              ))}
-              {/* Soft liquid glass highlight */}
-              <rect x="30" y="64" width="100" height="126" fill="url(#glassShine)" pointerEvents="none" />
-            </g>
-
-            {/* Glass Highlight Streak */}
-            <path
-              d="M39 76 V170"
-              stroke="#FFFFFF"
-              strokeWidth="4"
-              strokeLinecap="round"
-              strokeOpacity="0.7"
-              pointerEvents="none"
-            />
-
-            {/* Minimal Center Label */}
-            <rect
-              x="46"
-              y="104"
-              width="68"
-              height="38"
-              rx="12"
-              fill="#FFFFFF"
-              fillOpacity="0.9"
-              stroke="#F9A8D4"
-              strokeWidth="1.4"
-              pointerEvents="none"
-            />
-            <text
-              x="80"
-              y="121"
-              textAnchor="middle"
-              fill="#BE185D"
-              fontSize="11"
-              fontWeight="700"
-              fontFamily="Quicksand, sans-serif"
+        {/* 2D SVG or 3D WebGL Perfume Bottle */}
+        <div
+          className={`${
+            compact ? '' : dimensionMode === '3d' ? 'sm:col-span-6' : 'sm:col-span-5'
+          } flex flex-col items-center justify-center relative w-full`}
+        >
+          {dimensionMode === '3d' ? (
+            <div className="w-full space-y-2">
+              <FlorisBottle3D
+                layers={layers}
+                totalVolume={totalVolume}
+                concentrationPercent={concentrationPercent}
+                perfumeName={perfumeName}
+                hoveredId={hoveredId}
+                onHoverLayer={setHoveredId}
+                onSelectLayer={setHoveredId}
+                compact={compact}
+              />
+            </div>
+          ) : (
+            <svg
+              viewBox="0 0 160 215"
+              className={compact ? 'w-36 h-48' : 'w-40 h-52 sm:w-44 sm:h-56'}
+              xmlns="http://www.w3.org/2000/svg"
+              role="img"
+              aria-label={`Minh họa 2D chai nước hoa ${perfumeName} ${totalVolume} mL`}
             >
-              🌸 Floris
-            </text>
-            <text
-              x="80"
-              y="135"
-              textAnchor="middle"
-              fill="#4A4D48"
-              fontSize="8.5"
-              fontWeight="600"
-              fontFamily="JetBrains Mono, monospace"
-            >
-              {totalVolume} mL · {concentrationPercent}%
-            </text>
-          </svg>
+              <defs>
+                <clipPath id="bottleInteriorClip">
+                  <rect x="30" y="64" width="100" height="126" rx="26" />
+                </clipPath>
+                <linearGradient id="glassShine" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.65" />
+                  <stop offset="25%" stopColor="#FFFFFF" stopOpacity="0.15" />
+                  <stop offset="85%" stopColor="#FFFFFF" stopOpacity="0.05" />
+                  <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.45" />
+                </linearGradient>
+                <linearGradient id="capGrad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="#FDE68A" />
+                  <stop offset="100%" stopColor="#F59E0B" />
+                </linearGradient>
+              </defs>
+
+              {/* Wooden / Butter-Gold Rounded Cap */}
+              <rect x="62" y="14" width="36" height="24" rx="10" fill="url(#capGrad)" stroke="#D97706" strokeWidth="1.5" strokeOpacity="0.45" />
+              {/* Collar */}
+              <rect x="66" y="38" width="28" height="12" rx="4" fill="#FBCFE8" stroke="#EC4899" strokeWidth="1.2" strokeOpacity="0.5" />
+              {/* Bottle Neck */}
+              <path d="M58 50 H102 L106 60 H54 Z" fill="#FFFDF8" stroke="#EBC3D1" strokeWidth="1.5" />
+
+              {/* Outer Glass Body */}
+              <rect
+                x="25"
+                y="58"
+                width="110"
+                height="138"
+                rx="30"
+                fill="#FFFFFF"
+                stroke="#EBC3D1"
+                strokeWidth="2.5"
+              />
+
+              {/* Liquid Layers clipped to inner glass */}
+              <g clipPath="url(#bottleInteriorClip)">
+                <rect x="30" y="64" width="100" height="126" fill="#FFFBF5" />
+                {layers.map((layer) => (
+                  <rect
+                    key={layer.key}
+                    x="28"
+                    y={layer.y}
+                    width="104"
+                    height={layer.height + 0.5}
+                    fill={layer.color}
+                    opacity={hoveredId && hoveredId !== layer.key ? 0.55 : 0.92}
+                    className="transition-all duration-300 cursor-pointer"
+                    onMouseEnter={() => setHoveredId(layer.key)}
+                    onMouseLeave={() => setHoveredId(null)}
+                    onClick={() => setHoveredId(hoveredId === layer.key ? null : layer.key)}
+                  />
+                ))}
+                {/* Soft liquid glass highlight */}
+                <rect x="30" y="64" width="100" height="126" fill="url(#glassShine)" pointerEvents="none" />
+              </g>
+
+              {/* Glass Highlight Streak */}
+              <path
+                d="M39 76 V170"
+                stroke="#FFFFFF"
+                strokeWidth="4"
+                strokeLinecap="round"
+                strokeOpacity="0.7"
+                pointerEvents="none"
+              />
+
+              {/* Minimal Center Label */}
+              <rect
+                x="46"
+                y="104"
+                width="68"
+                height="38"
+                rx="12"
+                fill="#FFFFFF"
+                fillOpacity="0.9"
+                stroke="#F9A8D4"
+                strokeWidth="1.4"
+                pointerEvents="none"
+              />
+              <text
+                x="80"
+                y="121"
+                textAnchor="middle"
+                fill="#BE185D"
+                fontSize="11"
+                fontWeight="700"
+                fontFamily="Quicksand, sans-serif"
+              >
+                🌸 Floris
+              </text>
+              <text
+                x="80"
+                y="135"
+                textAnchor="middle"
+                fill="#4A4D48"
+                fontSize="8.5"
+                fontWeight="600"
+                fontFamily="JetBrains Mono, monospace"
+              >
+                {totalVolume} mL · {concentrationPercent}%
+              </text>
+            </svg>
+          )}
 
           {/* Mini Interactive Tooltip Readout */}
-          <div className="min-h-[26px] text-center">
+          <div className="min-h-[26px] text-center mt-1.5">
             {activeHovered ? (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FFF1F5] border border-[#FBCFE8] text-xs font-bold text-[#9D174D]">
                 <span>{activeHovered.emoji}</span>
                 <span>{activeHovered.label}: {activeHovered.pct}%</span>
               </span>
             ) : (
-              <span className="text-[11px] text-[#5C6B5F] flex items-center gap-1">
+              <span className="text-[11px] text-[#5C6B5F] flex items-center justify-center gap-1">
                 <Sparkles className="w-3 h-3 text-[#EC4899]" />
-                <span>Chạm vào tầng màu để xem nhanh</span>
+                <span>
+                  {dimensionMode === '3d'
+                    ? 'Xoay chai 3D & chạm tầng hương'
+                    : 'Chạm tầng màu hoặc bật 3D'}
+                </span>
               </span>
             )}
           </div>
         </div>
 
         {/* Visual Proportion Bars & Chips */}
-        <div className={`${compact ? '' : 'sm:col-span-7'} space-y-3`}>
+        <div className={`${compact ? '' : dimensionMode === '3d' ? 'sm:col-span-6' : 'sm:col-span-7'} space-y-3`}>
           {/* Stacked Horizontal Ratio Bar (Thanh tỷ lệ) */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs font-bold text-[#2B342D]">

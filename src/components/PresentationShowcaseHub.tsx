@@ -6,6 +6,7 @@ import {
   Check,
   QrCode,
   Mic,
+  MicOff,
   RotateCcw,
   Edit3,
   Volume2,
@@ -206,6 +207,74 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
   const [aiResult, setAiResult] = useState<any | null>(null);
   const [showQrPanel, setShowQrPanel] = useState<boolean>(isQrVisitorMode);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isListeningSpeech, setIsListeningSpeech] = useState(false);
+  const [speechPreviewNote, setSpeechPreviewNote] = useState<string | null>(null);
+  const promptInputRef = useRef<HTMLInputElement | null>(null);
+  const inlineRecognitionRef = useRef<any>(null);
+
+  const handleToggleInlineSpeechInput = () => {
+    if (isListeningSpeech) {
+      if (inlineRecognitionRef.current) {
+        try {
+          inlineRecognitionRef.current.stop();
+        } catch {}
+      }
+      setIsListeningSpeech(false);
+      setSpeechPreviewNote('Đã dừng nghe — bạn có thể kiểm tra và sửa lại câu chữ trước khi gửi.');
+      setTimeout(() => promptInputRef.current?.focus(), 0);
+      return;
+    }
+
+    const SpeechRecognitionAPI =
+      typeof window !== 'undefined'
+        ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+        : null;
+
+    if (!SpeechRecognitionAPI) {
+      onOpenVoiceWidget();
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognitionAPI();
+      recognition.lang = 'vi-VN';
+      recognition.interimResults = true;
+      recognition.continuous = false;
+
+      recognition.onstart = () => {
+        setIsListeningSpeech(true);
+        setAiError(null);
+        setSpeechPreviewNote('Đang nghe... Hãy nói yêu cầu chỉnh hương của bạn.');
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results || [])
+          .map((res: any) => res?.[0]?.transcript || '')
+          .join('')
+          .trim();
+        if (transcript) {
+          setUserRequest(transcript);
+        }
+      };
+
+      recognition.onend = () => {
+        setIsListeningSpeech(false);
+        setSpeechPreviewNote('Đã chuyển thành văn bản — hãy kiểm tra hoặc sửa lỗi chính tả rồi bấm "Đề xuất tỷ lệ mới".');
+        setTimeout(() => promptInputRef.current?.focus(), 0);
+      };
+
+      recognition.onerror = () => {
+        setIsListeningSpeech(false);
+        setSpeechPreviewNote('Không nhận diện được giọng nói. Bạn có thể nhập hoặc dùng Gemini Live.');
+      };
+
+      inlineRecognitionRef.current = recognition;
+      recognition.start();
+    } catch {
+      setIsListeningSpeech(false);
+      onOpenVoiceWidget();
+    }
+  };
 
   const [studentEval, setStudentEval] = useState<StudentScientificEvaluation>(() => {
     try {
@@ -704,6 +773,7 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
         {/* Input Row */}
         <div className="flex flex-col sm:flex-row gap-2.5">
           <input
+            ref={promptInputRef}
             type="text"
             value={userRequest}
             onChange={(e) => setUserRequest(e.target.value)}
@@ -713,13 +783,30 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
                 handleRunAIConsultation();
               }
             }}
-            placeholder="Nhập mong muốn chỉnh mùi (VD: Tươi mát hơn, giảm ngọt)..."
+            placeholder="Nhập hoặc bấm Nói (VD: Tăng hương đào rõ hơn)..."
             className="flex-1 px-4 py-2.5 rounded-2xl bg-white border-2 border-[#FDE68A] text-sm text-[#2B342D] focus:outline-none focus:border-[#EC4899]"
           />
           <button
             type="button"
             disabled={isAnalyzing}
-            onClick={() => handleRunAIConsultation()}
+            onClick={handleToggleInlineSpeechInput}
+            aria-label={isListeningSpeech ? 'Dừng thu âm giọng nói' : 'Nói để nhập yêu cầu'}
+            className={`px-4 py-2.5 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 border shrink-0 whitespace-nowrap transition-all ${
+              isListeningSpeech
+                ? 'bg-[#EC4899] text-white border-[#DB2777] animate-pulse'
+                : 'bg-[#FFF5F8] hover:bg-[#FCE7F3] text-[#BE185D] border-[#FBCFE8]'
+            }`}
+          >
+            {isListeningSpeech ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            <span>{isListeningSpeech ? 'Đang nghe...' : 'Nói'}</span>
+          </button>
+          <button
+            type="button"
+            disabled={isAnalyzing}
+            onClick={() => {
+              setSpeechPreviewNote(null);
+              handleRunAIConsultation();
+            }}
             className="px-5 py-2.5 rounded-2xl bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 disabled:opacity-60 shrink-0 whitespace-nowrap"
           >
             {isAnalyzing ? (
@@ -736,6 +823,12 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
           </button>
         </div>
 
+        {speechPreviewNote && (
+          <div className="px-3.5 py-2 rounded-2xl bg-[#FFF5F8] border border-[#FBCFE8] text-xs font-semibold text-[#9D174D]">
+            {speechPreviewNote}
+          </div>
+        )}
+
         {aiError && (
           <div className="p-3 rounded-2xl bg-[#FFE4E6] border border-[#FDA4AF] text-xs font-bold text-[#9F1239]">
             {aiError}
@@ -750,11 +843,23 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
         <section className="spring-card-sakura p-5 sm:p-6 space-y-5">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-[#FBCFE8]">
             <div>
-              <span className="px-2.5 py-0.5 rounded-full bg-white text-[#15803D] text-[11px] font-bold border border-[#BBF7D0]">
-                ✓ Chuẩn {aiResult.validationReport?.validatedSum ?? 100}%
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+                    aiResult.isUnchanged
+                      ? 'bg-[#FEF3C7] text-[#92400E] border-[#FCD34D]'
+                      : 'bg-white text-[#15803D] border-[#BBF7D0]'
+                  }`}
+                >
+                  {aiResult.isUnchanged
+                    ? '⚠️ Giữ nguyên tỷ lệ gốc'
+                    : `✓ Chuẩn ${aiResult.validationReport?.validatedSum ?? 100}%`}
+                </span>
+              </div>
               <h2 className="text-lg sm:text-xl font-bold text-[#2B342D] mt-1">
-                Đề xuất: “{aiResult.proposedPerfumeName}”
+                {aiResult.isUnchanged
+                  ? aiResult.proposedPerfumeName
+                  : `Đề xuất: “${aiResult.proposedPerfumeName}”`}
               </h2>
             </div>
 
@@ -763,9 +868,11 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
                 type="button"
                 onClick={() =>
                   handleSpeakText(
-                    `${aiResult.spokenResponse}. ${
-                      aiResult.olfactoryPredictionHypothesis?.overallChange || ''
-                    }`
+                    aiResult.isUnchanged
+                      ? aiResult.spokenResponse || aiResult.message
+                      : `${aiResult.spokenResponse}. ${
+                          aiResult.olfactoryPredictionHypothesis?.overallChange || ''
+                        }`
                   )
                 }
                 className="px-3.5 py-2 rounded-2xl bg-white hover:bg-[#FFF5F8] text-[#BE185D] border border-[#FBCFE8] text-xs font-bold flex items-center gap-1.5"
@@ -774,25 +881,38 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
                 <span>{isSpeaking ? 'Dừng' : 'Nghe AI'}</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  onApplyAdjustedFormula(
-                    aiResult.comparisonItems.map((c: any) => ({
-                      slotKey: c.slotKey,
-                      newPercentage: c.newPercentage,
-                    })),
-                    aiResult.proposedPerfumeName,
-                    userRequest
-                  );
-                  setAppliedSuccess(true);
-                }}
-                className="px-4 py-2 rounded-2xl bg-gradient-to-r from-[#EC4899] to-[#F472B6] hover:from-[#DB2777] hover:to-[#EC4899] text-white font-bold text-xs flex items-center gap-1.5 shadow-xs"
-              >
-                <Check className="w-3.5 h-3.5" />
-                <span>{appliedSuccess ? 'Đã nạp' : 'Áp dụng ngay'}</span>
-              </button>
+              {!aiResult.isUnchanged && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onApplyAdjustedFormula(
+                      aiResult.comparisonItems.map((c: any) => ({
+                        slotKey: c.slotKey,
+                        newPercentage: c.newPercentage,
+                      })),
+                      aiResult.proposedPerfumeName,
+                      userRequest
+                    );
+                    setAppliedSuccess(true);
+                  }}
+                  className="px-4 py-2 rounded-2xl bg-gradient-to-r from-[#EC4899] to-[#F472B6] hover:from-[#DB2777] hover:to-[#EC4899] text-white font-bold text-xs flex items-center gap-1.5 shadow-xs"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>{appliedSuccess ? 'Đã nạp' : 'Áp dụng ngay'}</span>
+                </button>
+              )}
             </div>
+          </div>
+
+          {/* Explanation Message */}
+          <div
+            className={`p-3.5 rounded-2xl border text-xs sm:text-sm font-medium leading-relaxed ${
+              aiResult.isUnchanged
+                ? 'bg-[#FFFDF0] border-[#FCD34D] text-[#92400E]'
+                : 'bg-white/85 border-[#FBCFE8] text-[#2B342D]'
+            }`}
+          >
+            {aiResult.message || aiResult.analysisSummary}
           </div>
 
           {/* Visual Proportion Comparison Bars */}
