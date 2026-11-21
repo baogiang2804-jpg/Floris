@@ -28,6 +28,7 @@ import {
   CalculatedIngredient,
   FormulaSlot,
   StudentScientificEvaluation,
+  calculateDropsFromMl,
   generatePresentationReportCsv,
   downloadCsvFile,
 } from '../utils/perfumeCalculations';
@@ -432,7 +433,15 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
       `• Đề xuất AI (${aiResult.proposedPerfumeName}):`,
       ...(aiResult.comparisonItems || []).map((item: any) => {
         const sign = item.deltaPercentage > 0 ? '+' : '';
-        return `- [${item.tierLabel}] ${item.name}: ${item.oldPercentage}% -> ${item.newPercentage}% (${sign}${item.deltaPercentage}%)`;
+        const oldDrops =
+          typeof item.oldDrops === 'number' && Number.isFinite(item.oldDrops)
+            ? Math.round(item.oldDrops)
+            : calculateDropsFromMl(item.oldVolumeMl, item.oldPercentage > 0);
+        const newDrops =
+          typeof item.newDrops === 'number' && Number.isFinite(item.newDrops)
+            ? Math.round(item.newDrops)
+            : calculateDropsFromMl(item.newVolumeMl, item.newPercentage > 0);
+        return `- [${item.tierLabel}] ${item.name}: ${item.oldPercentage}% (${oldDrops} giọt) -> ${item.newPercentage}% (${newDrops} giọt) (${sign}${item.deltaPercentage}%)`;
       }),
       `• Nhận xét nhóm: ${studentEval.isReasonableComment}`,
       `• Hóa học: ${studentEval.chemistryExplanation}`,
@@ -911,6 +920,14 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
               .filter((item: any) => item.oldPercentage > 0 || item.newPercentage > 0)
               .map((item: any) => {
                 const delta = item.deltaPercentage || 0;
+                const oldDrops =
+                  typeof item.oldDrops === 'number' && Number.isFinite(item.oldDrops)
+                    ? Math.round(item.oldDrops)
+                    : calculateDropsFromMl(item.oldVolumeMl, item.oldPercentage > 0);
+                const newDrops =
+                  typeof item.newDrops === 'number' && Number.isFinite(item.newDrops)
+                    ? Math.round(item.newDrops)
+                    : calculateDropsFromMl(item.newVolumeMl, item.newPercentage > 0);
                 return (
                   <div
                     key={item.slotKey}
@@ -942,7 +959,7 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
                             className="h-full bg-[#9CA3AF] rounded-full"
                           />
                         </div>
-                        <span className="w-9 text-right">{item.oldPercentage}%</span>
+                        <span className="w-20 text-right">{item.oldPercentage}% · {oldDrops}g</span>
                       </div>
 
                       <div className="flex items-center gap-2">
@@ -953,8 +970,8 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
                             className="h-full bg-[#EC4899] rounded-full"
                           />
                         </div>
-                        <span className="w-9 text-right font-bold text-[#BE185D]">
-                          {item.newPercentage}%
+                        <span className="w-20 text-right font-bold text-[#BE185D]">
+                          {item.newPercentage}% · {newDrops}g
                         </span>
                       </div>
                     </div>
@@ -978,23 +995,69 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
                       <th className="py-2.5 px-3">Nguyên liệu</th>
                       <th className="py-2.5 px-3 text-center">Gốc</th>
                       <th className="py-2.5 px-3 text-center">Mới</th>
+                      <th className="py-2.5 px-3 text-center bg-[#ECFDF3]/70 text-[#15803D] whitespace-nowrap">
+                        Số giọt (0,05mL)
+                      </th>
                       <th className="py-2.5 px-3">Lý do điều chỉnh</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#F6DCE5]">
-                    {(aiResult.comparisonItems || []).map((item: any) => (
-                      <tr key={item.slotKey}>
-                        <td className="py-2 px-3 font-bold text-[#2B342D]">{item.name}</td>
-                        <td className="py-2 px-3 text-center font-mono">
-                          {item.oldPercentage}% ({item.oldVolumeMl} mL)
-                        </td>
-                        <td className="py-2 px-3 text-center font-mono font-bold text-[#BE185D]">
-                          {item.newPercentage}% ({item.newVolumeMl} mL)
-                        </td>
-                        <td className="py-2 px-3 text-[#4A4D48]">{item.reason}</td>
-                      </tr>
-                    ))}
+                    {(aiResult.comparisonItems || []).map((item: any) => {
+                      const oldDrops =
+                        typeof item.oldDrops === 'number' && Number.isFinite(item.oldDrops)
+                          ? Math.round(item.oldDrops)
+                          : calculateDropsFromMl(item.oldVolumeMl, item.oldPercentage > 0);
+                      const newDrops =
+                        typeof item.newDrops === 'number' && Number.isFinite(item.newDrops)
+                          ? Math.round(item.newDrops)
+                          : calculateDropsFromMl(item.newVolumeMl, item.newPercentage > 0);
+                      return (
+                        <tr key={item.slotKey}>
+                          <td className="py-2 px-3 font-bold text-[#2B342D]">{item.name}</td>
+                          <td className="py-2 px-3 text-center font-mono whitespace-nowrap">
+                            {item.oldPercentage}% ({item.oldVolumeMl} mL)
+                          </td>
+                          <td className="py-2 px-3 text-center font-mono font-bold text-[#BE185D] whitespace-nowrap">
+                            {item.newPercentage}% ({item.newVolumeMl} mL)
+                          </td>
+                          <td className="py-2 px-3 text-center font-mono font-bold text-[#15803D] bg-[#ECFDF3]/40 whitespace-nowrap">
+                            {oldDrops} → {newDrops} giọt
+                          </td>
+                          <td className="py-2 px-3 text-[#4A4D48]">{item.reason}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
+                  <tfoot className="bg-[#FFFDF0] border-t border-[#FDE68A] font-mono font-bold text-[#2B342D]">
+                    <tr>
+                      <td className="py-2 px-3 font-sans">Tổng cộng</td>
+                      <td className="py-2 px-3 text-center">
+                        {(aiResult.comparisonItems || []).reduce((a: number, b: any) => a + (b.oldPercentage || 0), 0)}%
+                      </td>
+                      <td className="py-2 px-3 text-center text-[#BE185D]">
+                        {(aiResult.comparisonItems || []).reduce((a: number, b: any) => a + (b.newPercentage || 0), 0)}%
+                      </td>
+                      <td className="py-2 px-3 text-center text-[#15803D] bg-[#ECFDF3]/70 whitespace-nowrap">
+                        {(aiResult.comparisonItems || []).reduce((a: number, b: any) => {
+                          const d =
+                            typeof b.oldDrops === 'number' && Number.isFinite(b.oldDrops)
+                              ? Math.round(b.oldDrops)
+                              : calculateDropsFromMl(b.oldVolumeMl, b.oldPercentage > 0);
+                          return a + d;
+                        }, 0)}{' '}
+                        →{' '}
+                        {(aiResult.comparisonItems || []).reduce((a: number, b: any) => {
+                          const d =
+                            typeof b.newDrops === 'number' && Number.isFinite(b.newDrops)
+                              ? Math.round(b.newDrops)
+                              : calculateDropsFromMl(b.newVolumeMl, b.newPercentage > 0);
+                          return a + d;
+                        }, 0)}{' '}
+                        giọt
+                      </td>
+                      <td className="py-2 px-3 font-sans text-[#5C6B5F]">1 giọt = 0,05 mL (số nguyên)</td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
 

@@ -15,6 +15,7 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { SpringAccordion } from './SpringAccordion';
+import { calculateDropsFromMl } from '../utils/perfumeCalculations';
 
 interface IngredientRow {
   name: string;
@@ -92,11 +93,13 @@ if total_percentage == 100.0 and not limit_error:
         name = row['Tên nguyên liệu']
         pct = percentages[name]
         if pct > 0:
+            vol_ml = round(batch_volume * (pct / 100.0), 2)
             results.append({
                 "Tên nguyên liệu": name,
                 "Tầng hương": row['Tầng hương'],
                 "Tỉ lệ (%)": pct,
-                "Thể tích (ml)": round(batch_volume * (pct / 100.0), 2)
+                "Thể tích (ml)": vol_ml,
+                "Số giọt (1 giọt = 0,05 ml)": max(1, int(round(vol_ml / 0.05)))
             })
     df_results = pd.DataFrame(results)
     st.dataframe(df_results, use_container_width=True)
@@ -164,11 +167,13 @@ export const SubWebPythonStreamlit: React.FC<SubWebPythonStreamlitProps> = ({
       .map((row) => {
         const pct = percentages[row.name] || 0;
         const vol = Math.round((batchVolume * (pct / 100.0)) * 100) / 100;
+        const drops = calculateDropsFromMl(vol, pct > 0);
         return {
           name: row.name,
           tier: row.tier,
           percentage: pct,
           volume: vol,
+          drops,
         };
       });
   }, [totalPercentage, hasLimitError, ingredientsData, percentages, batchVolume]);
@@ -228,9 +233,9 @@ export const SubWebPythonStreamlit: React.FC<SubWebPythonStreamlitProps> = ({
 
   const handleDownloadCsv = () => {
     if (results.length === 0) return;
-    const header = 'Tên nguyên liệu,Tầng hương,Tỉ lệ (%),Thể tích (ml)\n';
+    const header = 'Tên nguyên liệu,Tầng hương,Tỉ lệ (%),Thể tích (ml),Số giọt (1 giọt = 0,05 ml)\n';
     const rows = results
-      .map((r) => `"${r.name}","${r.tier}",${r.percentage},${r.volume}`)
+      .map((r) => `"${r.name}","${r.tier}",${r.percentage},${r.volume},${r.drops}`)
       .join('\n');
     const csvContent = '\uFEFF' + header + rows;
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -513,6 +518,50 @@ export const SubWebPythonStreamlit: React.FC<SubWebPythonStreamlitProps> = ({
                     Ưu thế: {dominantInfo.dominantNote}
                   </span>
                 )}
+              </div>
+
+              {/* Formula Result Table with integer Số giọt column (1 giọt = 0,05 mL) */}
+              <div className="overflow-x-auto rounded-2xl border border-[#F3DCE4] bg-white">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-[#FFF5F8] text-[#9D174D] font-bold">
+                    <tr>
+                      <th className="py-2 px-3">Nguyên liệu</th>
+                      <th className="py-2 px-3">Tầng</th>
+                      <th className="py-2 px-3 text-right">Tỉ lệ (%)</th>
+                      <th className="py-2 px-3 text-right">Thể tích (mL)</th>
+                      <th className="py-2 px-3 text-right bg-[#ECFDF3]/70 text-[#15803D] whitespace-nowrap">
+                        Số giọt (0,05mL)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#F8E8EE] font-mono">
+                    {results.map((r) => (
+                      <tr key={r.name}>
+                        <td className="py-2 px-3 font-sans font-bold text-[#2B342D]">{r.name}</td>
+                        <td className="py-2 px-3 font-sans text-[#5C6B5F]">{r.tier}</td>
+                        <td className="py-2 px-3 text-right font-bold text-[#BE185D]">{r.percentage}%</td>
+                        <td className="py-2 px-3 text-right font-bold text-[#2B342D]">{r.volume} mL</td>
+                        <td className="py-2 px-3 text-right font-bold text-[#15803D] bg-[#ECFDF3]/40 whitespace-nowrap">
+                          {r.drops} giọt
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-[#FFFDF0] border-t border-[#FDE68A] font-mono font-bold">
+                    <tr>
+                      <td colSpan={2} className="py-2 px-3 font-sans">Tổng cộng</td>
+                      <td className="py-2 px-3 text-right text-[#BE185D]">
+                        {results.reduce((a, b) => a + b.percentage, 0)}%
+                      </td>
+                      <td className="py-2 px-3 text-right">
+                        {results.reduce((a, b) => a + b.volume, 0).toFixed(2)} mL
+                      </td>
+                      <td className="py-2 px-3 text-right text-[#15803D] bg-[#ECFDF3]/70 whitespace-nowrap">
+                        {results.reduce((a, b) => a + b.drops, 0)} giọt
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-2.5">

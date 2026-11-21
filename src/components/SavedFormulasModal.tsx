@@ -16,6 +16,7 @@ import { SavedFormula } from '../types/savedFormula';
 import {
   CalculatedIngredient,
   FormulaSlot,
+  calculateDropsFromMl,
   generateCsvContent,
   downloadCsvFile,
 } from '../utils/perfumeCalculations';
@@ -53,9 +54,11 @@ interface UnifiedIngredientComparisonRow {
   tierLabel: string;
   pctA: number;
   mlA: number;
+  dropsA: number;
   finalConcA: number;
   pctB: number;
   mlB: number;
+  dropsB: number;
   finalConcB: number;
   deltaPct: number;
   deltaMl: number;
@@ -226,9 +229,11 @@ export const SavedFormulasModal: React.FC<SavedFormulasModalProps> = ({
           tierLabel: item.tierLabel,
           pctA: item.pctA,
           mlA: item.mlA,
+          dropsA: calculateDropsFromMl(item.mlA, item.pctA > 0),
           finalConcA,
           pctB: item.pctB,
           mlB: item.mlB,
+          dropsB: calculateDropsFromMl(item.mlB, item.pctB > 0),
           finalConcB,
           deltaPct,
           deltaMl,
@@ -274,13 +279,14 @@ export const SavedFormulasModal: React.FC<SavedFormulasModalProps> = ({
 
   const handleExportComparisonCsv = () => {
     const lines: string[] = [
-      '\uFEFF=== SO SÁNH 2 CÔNG THỨC FLORIS ===',
+      '\uFEFF=== SO SÁNH 2 CÔNG THỨC FLORIS (1 GIỌT = 0,05 mL) ===',
       `Mẫu A,"${formulaA.name.replace(/"/g, '""')}"`,
       `Mẫu B,"${formulaB.name.replace(/"/g, '""')}"`,
       '',
-      'Tầng,Thành phần,Mẫu A (%),Mẫu B (%),Thay đổi Δ (%)',
+      'Tầng,Thành phần,Mẫu A (%),Mẫu A (mL),Mẫu A (giọt),Mẫu B (%),Mẫu B (mL),Mẫu B (giọt),Thay đổi Δ (%)',
       ...unifiedComparisonRows.map(
-        (r) => `"${r.tierLabel}","${r.name}",${r.pctA}%,${r.pctB}%,${r.deltaPct}%`
+        (r) =>
+          `"${r.tierLabel}","${r.name}",${r.pctA}%,${r.mlA} mL,${r.dropsA} giọt,${r.pctB}%,${r.mlB} mL,${r.dropsB} giọt,${r.deltaPct}%`
       ),
     ];
     downloadCsvFile(lines.join('\n'), `so_sanh_floris_${Date.now()}.csv`);
@@ -765,42 +771,84 @@ export const SavedFormulasModal: React.FC<SavedFormulasModalProps> = ({
                 icon={<GitCompare className="w-4 h-4 text-[#EC4899]" />}
               >
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="border-b border-[#F3DCE4] text-[#5C6B5F]">
-                        <th className="py-2 px-2">Nguyên liệu</th>
-                        <th className="py-2 px-2 text-right">Mẫu A</th>
-                        <th className="py-2 px-2 text-right">Mẫu B</th>
-                        <th className="py-2 px-2 text-right">Δ%</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#F8E8EE] font-mono">
-                      {(compareViewMode === 'unified'
+                  {(() => {
+                    const displayRows =
+                      compareViewMode === 'unified'
                         ? unifiedComparisonRows
-                        : [0, 1, 2, 3, 4, 5].map((i) => ({
-                            key: String(i),
-                            name: formulaA.calculatedIngredients[i]?.name || `Vị trí #${i + 1}`,
-                            pctA: formulaA.calculatedIngredients[i]?.percentage || 0,
-                            pctB: formulaB.calculatedIngredients[i]?.percentage || 0,
-                            deltaPct: Number(
-                              (
-                                (formulaB.calculatedIngredients[i]?.percentage || 0) -
-                                (formulaA.calculatedIngredients[i]?.percentage || 0)
-                              ).toFixed(1)
-                            ),
-                          }))
-                      ).map((row) => (
-                        <tr key={row.key}>
-                          <td className="py-2 px-2 font-sans font-bold text-[#2B342D]">{row.name}</td>
-                          <td className="py-2 px-2 text-right text-[#BE185D] font-bold">{row.pctA}%</td>
-                          <td className="py-2 px-2 text-right text-[#15803D] font-bold">{row.pctB}%</td>
-                          <td className="py-2 px-2 text-right font-bold">
-                            {row.deltaPct > 0 ? `+${row.deltaPct}%` : `${row.deltaPct}%`}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                        : [0, 1, 2, 3, 4, 5].map((i) => {
+                            const ingA = formulaA.calculatedIngredients[i];
+                            const ingB = formulaB.calculatedIngredients[i];
+                            const pctA = ingA?.percentage || 0;
+                            const pctB = ingB?.percentage || 0;
+                            const mlA = ingA?.volumeMl || 0;
+                            const mlB = ingB?.volumeMl || 0;
+                            const dropsA =
+                              typeof ingA?.drops === 'number' && Number.isFinite(ingA.drops)
+                                ? Math.round(ingA.drops)
+                                : calculateDropsFromMl(mlA, pctA > 0);
+                            const dropsB =
+                              typeof ingB?.drops === 'number' && Number.isFinite(ingB.drops)
+                                ? Math.round(ingB.drops)
+                                : calculateDropsFromMl(mlB, pctB > 0);
+                            return {
+                              key: String(i),
+                              name: ingA?.name || `Vị trí #${i + 1}`,
+                              pctA,
+                              pctB,
+                              dropsA,
+                              dropsB,
+                              deltaPct: Number((pctB - pctA).toFixed(1)),
+                            };
+                          });
+                    const totalDropsA = displayRows.reduce((acc, r) => acc + r.dropsA, 0);
+                    const totalDropsB = displayRows.reduce((acc, r) => acc + r.dropsB, 0);
+
+                    return (
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="border-b border-[#F3DCE4] text-[#5C6B5F]">
+                            <th className="py-2 px-2">Nguyên liệu</th>
+                            <th className="py-2 px-2 text-right">Mẫu A</th>
+                            <th className="py-2 px-2 text-right">Mẫu B</th>
+                            <th className="py-2 px-2 text-center bg-[#ECFDF3]/70 text-[#15803D] whitespace-nowrap">
+                              Số giọt (0,05mL)
+                            </th>
+                            <th className="py-2 px-2 text-right">Δ%</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#F8E8EE] font-mono">
+                          {displayRows.map((row) => (
+                            <tr key={row.key}>
+                              <td className="py-2 px-2 font-sans font-bold text-[#2B342D]">{row.name}</td>
+                              <td className="py-2 px-2 text-right text-[#BE185D] font-bold">{row.pctA}%</td>
+                              <td className="py-2 px-2 text-right text-[#15803D] font-bold">{row.pctB}%</td>
+                              <td className="py-2 px-2 text-center font-bold text-[#15803D] bg-[#ECFDF3]/40 whitespace-nowrap">
+                                {row.dropsA} → {row.dropsB} giọt
+                              </td>
+                              <td className="py-2 px-2 text-right font-bold">
+                                {row.deltaPct > 0 ? `+${row.deltaPct}%` : `${row.deltaPct}%`}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="bg-[#FFFDF0] border-t border-[#FDE68A] font-mono font-bold">
+                          <tr>
+                            <td className="py-2 px-2 font-sans">Tổng</td>
+                            <td className="py-2 px-2 text-right text-[#BE185D]">
+                              {displayRows.reduce((acc, r) => acc + r.pctA, 0)}%
+                            </td>
+                            <td className="py-2 px-2 text-right text-[#15803D]">
+                              {displayRows.reduce((acc, r) => acc + r.pctB, 0)}%
+                            </td>
+                            <td className="py-2 px-2 text-center text-[#15803D] bg-[#ECFDF3]/70 whitespace-nowrap">
+                              {totalDropsA} → {totalDropsB} giọt
+                            </td>
+                            <td className="py-2 px-2 text-right text-[#5C6B5F]">—</td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    );
+                  })()}
                 </div>
               </SpringAccordion>
             </div>

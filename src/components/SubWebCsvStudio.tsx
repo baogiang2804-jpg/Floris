@@ -11,7 +11,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { INGREDIENT_CATALOG, PerfumeIngredient, SEASONAL_TEMPLATES } from '../data/perfumeData';
-import { CalculatedIngredient, FormulaSlot } from '../utils/perfumeCalculations';
+import { CalculatedIngredient, FormulaSlot, calculateDropsFromMl } from '../utils/perfumeCalculations';
 import { FormulaTableAndCsv } from './FormulaTableAndCsv';
 import { ScentFamilyVisualBadge } from './SpringDecorations';
 
@@ -462,7 +462,10 @@ export const SubWebCsvStudio: React.FC<SubWebCsvStudioProps> = ({
                 <th className="py-2.5 px-3">Nguyên liệu</th>
                 <th className="py-2.5 px-3">Tên riêng</th>
                 <th className="py-2.5 px-3 text-center">Tỷ lệ %</th>
-                <th className="py-2.5 px-3 text-right">Định lượng</th>
+                <th className="py-2.5 px-3 text-right whitespace-nowrap">Thể tích (mL)</th>
+                <th className="py-2.5 px-3 text-right bg-[#ECFDF3]/70 text-[#15803D] whitespace-nowrap">
+                  Số giọt (0,05mL)
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F8E8EE]">
@@ -561,8 +564,15 @@ export const SubWebCsvStudio: React.FC<SubWebCsvStudioProps> = ({
                       </div>
                     </td>
                     <td className="py-2.5 px-3 text-right font-mono whitespace-nowrap">
-                      <span className="text-[#15803D] font-bold">{calc?.volumeMl} mL</span>
-                      <span className="text-[#5C6B5F] ml-1">(~{calc?.drops})</span>
+                      <span className="text-[#2B342D] font-bold">{calc?.volumeMl} mL</span>
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-mono font-bold text-[#15803D] bg-[#ECFDF3]/40 whitespace-nowrap">
+                      {calc
+                        ? Number.isInteger(calc.drops)
+                          ? calc.drops
+                          : calculateDropsFromMl(calc.volumeMl, calc.percentage > 0)
+                        : 0}{' '}
+                      giọt
                     </td>
                   </tr>
                 );
@@ -580,7 +590,18 @@ export const SubWebCsvStudio: React.FC<SubWebCsvStudioProps> = ({
                 >
                   {totalPercentage}%
                 </td>
-                <td className="py-2.5 px-3 text-right font-bold text-[#BE185D]">{totalVolume} mL</td>
+                <td className="py-2.5 px-3 text-right font-bold text-[#BE185D] whitespace-nowrap">
+                  {calculatedIngredients.reduce((acc, item) => acc + (item.volumeMl || 0), 0).toFixed(2)} mL
+                </td>
+                <td className="py-2.5 px-3 text-right font-bold text-[#15803D] bg-[#ECFDF3] whitespace-nowrap">
+                  {calculatedIngredients.reduce((acc, item) => {
+                    const d = Number.isInteger(item.drops)
+                      ? item.drops
+                      : calculateDropsFromMl(item.volumeMl, item.percentage > 0);
+                    return acc + d;
+                  }, 0)}{' '}
+                  giọt
+                </td>
               </tr>
             </tfoot>
           </table>

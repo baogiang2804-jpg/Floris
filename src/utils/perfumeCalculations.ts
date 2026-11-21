@@ -41,6 +41,21 @@ export interface StudentScientificEvaluation {
   verificationExperimentPlan: string;
 }
 
+export const DROP_VOLUME_ML = 0.05;
+
+/**
+ * Converts a fragrance/liquid volume in mL to a strict integer number of drops
+ * based on 1 drop = 0.05 mL (20 drops/mL).
+ */
+export function calculateDropsFromMl(
+  volumeMl: number,
+  requireMinOneWhenPositive = false
+): number {
+  if (!Number.isFinite(volumeMl) || volumeMl <= 0) return 0;
+  const rawDrops = Math.round(volumeMl / DROP_VOLUME_ML);
+  return requireMinOneWhenPositive ? Math.max(1, rawDrops) : rawDrops;
+}
+
 export function calculateFormula(
   slots: FormulaSlot[],
   totalVolume: number,
@@ -76,7 +91,7 @@ export function calculateFormula(
     const finalProductConcentrationPercent = Number(
       ((slot.percentage * concentrationPercent) / 100).toFixed(2)
     );
-    const drops = Math.round(volumeInCompoundMl * 20); // ~20 giọt tinh dầu ≈ 1 mL
+    const drops = calculateDropsFromMl(volumeInCompoundMl, slot.percentage > 0);
 
     return {
       slotKey: slot.key,
@@ -90,7 +105,7 @@ export function calculateFormula(
       percentage: slot.percentage,
       finalProductConcentrationPercent,
       volumeMl: volumeInCompoundMl,
-      drops: slot.percentage > 0 ? Math.max(1, drops) : 0,
+      drops,
       ifraMaxPercent: catalogItem.ifraMaxPercent,
       isExceedingIfra: finalProductConcentrationPercent > catalogItem.ifraMaxPercent,
       chemicalCompounds: catalogItem.chemicalCompounds,
@@ -162,23 +177,28 @@ export function generateCsvContent(
     'Tỉ Lệ Trong Cốt Hợp Hương (%)',
     'Nồng Độ Trong Thành Phẩm Hoàn Chỉnh (%)',
     'Thể Tích Tinh Dầu Nguyên Chất (mL)',
-    'Số Giọt Ước Tính (drops)',
+    'Số Giọt (1 giọt = 0,05 mL)',
     'Giới Hạn IFRA Cat.4 Trong Thành Phẩm (%)',
     'Đặc Điểm Mùi Đã Quan Sát Thực Nghiệm',
   ];
 
-  const rows = ingredients.map((ing, idx) => [
-    `"${ing.tierLabel}"`,
-    idx + 1,
-    `"${ing.name}"`,
-    `"${ing.scientificName} - ${ing.scentFamily}"`,
-    `${ing.percentage}%`,
-    `${ing.finalProductConcentrationPercent ?? Number(((ing.percentage * 18) / 100).toFixed(2))}%`,
-    `${ing.volumeMl} mL`,
-    `${ing.drops} giọt`,
-    `${ing.ifraMaxPercent}%`,
-    `"${(ing.observedLabNote || '').replace(/"/g, '""')}"`,
-  ]);
+  const rows = ingredients.map((ing, idx) => {
+    const intDrops = Number.isInteger(ing.drops)
+      ? ing.drops
+      : calculateDropsFromMl(ing.volumeMl, ing.percentage > 0);
+    return [
+      `"${ing.tierLabel}"`,
+      idx + 1,
+      `"${ing.name}"`,
+      `"${ing.scientificName} - ${ing.scentFamily}"`,
+      `${ing.percentage}%`,
+      `${ing.finalProductConcentrationPercent ?? Number(((ing.percentage * 18) / 100).toFixed(2))}%`,
+      `${ing.volumeMl} mL`,
+      `${intDrops} giọt`,
+      `${ing.ifraMaxPercent}%`,
+      `"${(ing.observedLabNote || '').replace(/"/g, '""')}"`,
+    ];
+  });
 
   const csvMeta = [
     `"BẢNG CÔNG THỨC PHA CHẾ NƯỚC HOA - FLORIS"`,
@@ -225,6 +245,8 @@ export function generatePresentationReportCsv(params: {
     deltaPercentage: number;
     oldVolumeMl: number;
     newVolumeMl: number;
+    oldDrops?: number;
+    newDrops?: number;
     reason: string;
   }[];
   studentEvaluation: StudentScientificEvaluation;
@@ -270,13 +292,23 @@ export function generatePresentationReportCsv(params: {
       'Nồng Độ Đề Xuất Trong Thành Phẩm (%)',
       'Phần Trăm Thay Đổi (Delta %)',
       'Thể Tích Tinh Dầu Gốc (mL)',
+      'Số Giọt Gốc (1 giọt = 0,05 mL)',
       'Thể Tích Tinh Dầu Mới (mL)',
+      'Số Giọt Mới (1 giọt = 0,05 mL)',
       'Giải Thích Lý Do Điều Chỉnh Của AI',
     ].join(','),
     ...params.comparisonItems.map((item) => {
       const oldFinalConc = Number(((item.oldPercentage * params.concentrationPercent) / 100).toFixed(2));
       const newFinalConc = Number(((item.newPercentage * params.concentrationPercent) / 100).toFixed(2));
       const deltaStr = item.deltaPercentage > 0 ? `+${item.deltaPercentage}%` : `${item.deltaPercentage}%`;
+      const oldDrops =
+        typeof item.oldDrops === 'number' && Number.isFinite(item.oldDrops)
+          ? Math.round(item.oldDrops)
+          : calculateDropsFromMl(item.oldVolumeMl, item.oldPercentage > 0);
+      const newDrops =
+        typeof item.newDrops === 'number' && Number.isFinite(item.newDrops)
+          ? Math.round(item.newDrops)
+          : calculateDropsFromMl(item.newVolumeMl, item.newPercentage > 0);
       return [
         q(item.tierLabel),
         q(item.name),
@@ -287,7 +319,9 @@ export function generatePresentationReportCsv(params: {
         `${newFinalConc}%`,
         q(deltaStr),
         `${item.oldVolumeMl} mL`,
+        `${oldDrops} giọt`,
         `${item.newVolumeMl} mL`,
+        `${newDrops} giọt`,
         q(item.reason),
       ].join(',');
     }),
@@ -425,7 +459,7 @@ ingredients_data = [
 
 df = pd.DataFrame(ingredients_data)
 df["Thể Tích (mL)"] = df["Tỉ Lệ (%)"].apply(lambda p: round((total_volume * p) / 100, 2))
-df["Số Giọt Ước Tính (~20 giọt/mL)"] = df["Thể Tích (mL)"].apply(lambda ml: round(ml * 20))
+df["Số Giọt (1 giọt = 0,05 mL)"] = df["Thể Tích (mL)"].apply(lambda ml: int(round(ml / 0.05)))
 
 st.markdown("### 📊 Bảng Định Lượng Công Thức Chi Tiết")
 st.dataframe(df, use_container_width=True)
@@ -501,11 +535,11 @@ if st.session_state.saved_formulas:
         with col_comp1:
             selA = st.selectbox("Chọn Bản A:", names_list, index=0)
             dataA = next(x for x in st.session_state.saved_formulas if x["name"] == selA)
-            st.dataframe(dataA["df"][["Tầng", "Nguyên Liệu", "Tỉ Lệ (%)", "Thể Tích (mL)"]])
+            st.dataframe(dataA["df"][["Tầng", "Nguyên Liệu", "Tỉ Lệ (%)", "Thể Tích (mL)", "Số Giọt (1 giọt = 0,05 mL)"]])
         with col_comp2:
             selB = st.selectbox("Chọn Bản B:", names_list, index=1)
             dataB = next(x for x in st.session_state.saved_formulas if x["name"] == selB)
-            st.dataframe(dataB["df"][["Tầng", "Nguyên Liệu", "Tỉ Lệ (%)", "Thể Tích (mL)"]])
+            st.dataframe(dataB["df"][["Tầng", "Nguyên Liệu", "Tỉ Lệ (%)", "Thể Tích (mL)", "Số Giọt (1 giọt = 0,05 mL)"]])
 
 # 9. Thẩm Định Với API AI (Do GV Quản Lý - Không Nhập Khóa Vào Mã)
 st.divider()

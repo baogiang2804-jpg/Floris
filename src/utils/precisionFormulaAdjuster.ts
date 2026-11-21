@@ -1,4 +1,4 @@
-import { FormulaSlot } from './perfumeCalculations';
+import { FormulaSlot, calculateDropsFromMl } from './perfumeCalculations';
 
 export interface PrecisionFormulaEntry {
   name: string;
@@ -669,8 +669,8 @@ export function normalizeAdjustmentOutput(
     const newVolMl = Number(((pureFragranceMl * item.newPercentage) / 100).toFixed(2));
     const oldFinalProductConcPercent = Number(((item.oldPercentage * concentrationPercent) / 100).toFixed(2));
     const newFinalProductConcPercent = Number(((item.newPercentage * concentrationPercent) / 100).toFixed(2));
-    const oldDrops = item.oldPercentage === 0 ? 0 : Math.max(1, Math.round(oldVolMl * 20));
-    const newDrops = item.newPercentage === 0 ? 0 : Math.max(1, Math.round(newVolMl * 20));
+    const oldDrops = calculateDropsFromMl(oldVolMl, item.oldPercentage > 0);
+    const newDrops = calculateDropsFromMl(newVolMl, item.newPercentage > 0);
     return {
       ...item,
       deltaPercentage: item.newPercentage - item.oldPercentage,
@@ -1427,6 +1427,19 @@ export function enforceClientFormulaIntegrity(
     );
   }
 
-  return candidate;
+  return {
+    ...candidate,
+    comparisonItems: candidateItems.map((item) => ({
+      ...item,
+      oldDrops:
+        typeof item.oldDrops === 'number' && Number.isFinite(item.oldDrops)
+          ? Math.round(item.oldDrops)
+          : calculateDropsFromMl(item.oldVolumeMl, item.oldPercentage > 0),
+      newDrops:
+        typeof item.newDrops === 'number' && Number.isFinite(item.newDrops)
+          ? Math.round(item.newDrops)
+          : calculateDropsFromMl(item.newVolumeMl, item.newPercentage > 0),
+    })),
+  };
 }
 

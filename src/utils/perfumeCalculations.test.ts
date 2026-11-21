@@ -1,6 +1,14 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateFormula, autoBalanceSlots, FormulaSlot } from './perfumeCalculations.ts';
+import {
+  DROP_VOLUME_ML,
+  calculateDropsFromMl,
+  calculateFormula,
+  autoBalanceSlots,
+  generateCsvContent,
+  generatePresentationReportCsv,
+  FormulaSlot,
+} from './perfumeCalculations.ts';
 import {
   generateLocalEvaluation,
   normalizeAdjustmentOutput,
@@ -473,5 +481,75 @@ describe('Floris Perfume Calculation & AI Normalization Logic', () => {
       globalThis.fetch = prevFetch;
     }
   });
+
+  it('converts mL to strict integer drops at 0.05 mL/drop across formulas, AI comparisons, and CSV exports', () => {
+    assert.equal(DROP_VOLUME_ML, 0.05);
+    assert.equal(calculateDropsFromMl(0), 0);
+    assert.equal(calculateDropsFromMl(0.05), 1);
+    assert.equal(calculateDropsFromMl(0.15), 3); // handles IEEE-754 0.15/0.05 cleanly
+    assert.equal(calculateDropsFromMl(0.4), 8);
+    assert.equal(calculateDropsFromMl(0.01, true), 1);
+    assert.equal(calculateDropsFromMl(0.123), 2);
+    assert.ok(Number.isInteger(calculateDropsFromMl(0.37)));
+
+    const calc = calculateFormula(SAMPLE_SLOTS, 10, 10);
+    for (const ing of calc.calculatedIngredients) {
+      assert.ok(Number.isInteger(ing.drops), `Expected integer drops for ${ing.name}, got ${ing.drops}`);
+      assert.equal(ing.drops, calculateDropsFromMl(ing.volumeMl, ing.percentage > 0));
+    }
+
+    const aiRes = generateLocalAdjustment(
+      'Tăng hương đào rõ hơn',
+      'Mùa Xuân (Spring)',
+      10,
+      10,
+      calc.calculatedIngredients,
+      calc.tierTotals
+    );
+    for (const item of aiRes.comparisonItems) {
+      assert.ok(Number.isInteger(item.oldDrops), `Expected integer oldDrops for ${item.name}`);
+      assert.ok(Number.isInteger(item.newDrops), `Expected integer newDrops for ${item.name}`);
+      assert.equal(item.oldDrops, calculateDropsFromMl(item.oldVolumeMl, item.oldPercentage > 0));
+      assert.equal(item.newDrops, calculateDropsFromMl(item.newVolumeMl, item.newPercentage > 0));
+    }
+
+    const formulaCsv = generateCsvContent(
+      'Floris Xuân',
+      'Mùa Xuân',
+      10,
+      '10%',
+      calc.calculatedIngredients,
+      calc.tierTotals
+    );
+    assert.match(formulaCsv, /Số Giọt \(1 giọt = 0,05 mL\)/);
+    assert.match(formulaCsv, /,8 giọt,/);
+
+    const reportCsv = generatePresentationReportCsv({
+      baselineTitle: 'Floris Gốc',
+      seasonLabel: 'Mùa Xuân',
+      totalVolume: 10,
+      concentrationName: '10%',
+      concentrationPercent: 10,
+      pureFragranceMl: 1,
+      carrierAlcoholMl: 9,
+      userRequest: 'Tăng hương đào',
+      proposedPerfumeName: aiRes.proposedPerfumeName,
+      analysisSummary: aiRes.analysisSummary,
+      olfactoryHypothesisText: aiRes.olfactoryPredictionHypothesis?.overallChange || '',
+      comparisonItems: aiRes.comparisonItems,
+      studentEvaluation: {
+        isReasonableRating: 'very_reasonable',
+        isReasonableComment: 'Hợp lý',
+        chemistryExplanation: 'Cân bằng',
+        groupDecision: 'agree',
+        groupDecisionReason: 'Đồng ý',
+        verificationExperimentPlan: 'Pha 10 mL',
+      },
+    });
+    assert.match(reportCsv, /Số Giọt Gốc \(1 giọt = 0,05 mL\)/);
+    assert.match(reportCsv, /Số Giọt Mới \(1 giọt = 0,05 mL\)/);
+    assert.match(reportCsv, /,\d+ giọt,/);
+  });
 });
+
 

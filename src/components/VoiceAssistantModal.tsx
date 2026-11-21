@@ -15,7 +15,7 @@ import {
   Square,
   RotateCcw,
 } from 'lucide-react';
-import { CalculatedIngredient, FormulaSlot } from '../utils/perfumeCalculations';
+import { CalculatedIngredient, FormulaSlot, calculateDropsFromMl } from '../utils/perfumeCalculations';
 import {
   safeRequestPerfumeAdjustment,
   safeRequestTTS,
@@ -561,35 +561,53 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {adjustmentResult.comparisonItems
                     .filter((item) => item.oldPercentage > 0 || item.newPercentage > 0)
-                    .map((item) => (
-                    <div
-                      key={item.slotKey}
-                      className="p-3 rounded-2xl bg-[#FFFDF8] border border-[#F3DCE4] space-y-1.5 text-xs"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-[#2B342D]">{item.name}</span>
-                        <span
-                          className={`font-mono font-bold px-2 py-0.5 rounded-full text-[11px] ${
-                            item.deltaPercentage > 0
-                              ? 'bg-[#DCFCE7] text-[#15803D]'
-                              : item.deltaPercentage < 0
-                              ? 'bg-[#FFE4E6] text-[#BE123C]'
-                              : 'bg-gray-100 text-[#5C6B5F]'
-                          }`}
-                        >
-                          {item.oldPercentage}% → {item.newPercentage}% (
-                          {item.deltaPercentage > 0 ? '+' : ''}
-                          {item.deltaPercentage}%)
-                        </span>
-                      </div>
-                      <div className="w-full h-2 rounded-full bg-[#FCE7F3] overflow-hidden">
+                    .map((item) => {
+                      const oldDrops =
+                        typeof item.oldDrops === 'number' && Number.isFinite(item.oldDrops)
+                          ? Math.round(item.oldDrops)
+                          : calculateDropsFromMl(item.oldVolumeMl, item.oldPercentage > 0);
+                      const newDrops =
+                        typeof item.newDrops === 'number' && Number.isFinite(item.newDrops)
+                          ? Math.round(item.newDrops)
+                          : calculateDropsFromMl(item.newVolumeMl, item.newPercentage > 0);
+                      return (
                         <div
-                          className="h-full bg-[#EC4899] rounded-full"
-                          style={{ width: `${Math.min(100, item.newPercentage)}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                          key={item.slotKey}
+                          className="p-3 rounded-2xl bg-[#FFFDF8] border border-[#F3DCE4] space-y-1.5 text-xs"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-bold text-[#2B342D] truncate">{item.name}</span>
+                            <span
+                              className={`font-mono font-bold px-2 py-0.5 rounded-full text-[11px] shrink-0 ${
+                                item.deltaPercentage > 0
+                                  ? 'bg-[#DCFCE7] text-[#15803D]'
+                                  : item.deltaPercentage < 0
+                                  ? 'bg-[#FFE4E6] text-[#BE123C]'
+                                  : 'bg-gray-100 text-[#5C6B5F]'
+                              }`}
+                            >
+                              {item.oldPercentage}% → {item.newPercentage}% (
+                              {item.deltaPercentage > 0 ? '+' : ''}
+                              {item.deltaPercentage}%)
+                            </span>
+                          </div>
+                          <div className="w-full h-2 rounded-full bg-[#FCE7F3] overflow-hidden">
+                            <div
+                              className="h-full bg-[#EC4899] rounded-full"
+                              style={{ width: `${Math.min(100, item.newPercentage)}%` }}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between text-[11px] font-mono text-[#5C6B5F]">
+                            <span>
+                              {item.oldVolumeMl} → {item.newVolumeMl} mL
+                            </span>
+                            <span className="font-bold text-[#15803D]">
+                              💧 {oldDrops} → {newDrops} giọt
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
                 </div>
 
                 <SpringAccordion title="Bảng chi tiết & Cơ sở Hóa học" tone="butter">
@@ -600,23 +618,71 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
                           <th className="py-2 px-2">Nguyên liệu</th>
                           <th className="py-2 px-2 text-center">Gốc</th>
                           <th className="py-2 px-2 text-center">Mới</th>
+                          <th className="py-2 px-2 text-center bg-[#ECFDF3]/70 text-[#15803D] whitespace-nowrap">
+                            Số giọt (0,05mL)
+                          </th>
                           <th className="py-2 px-2">Giải thích</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#FEF3C7]">
                         {adjustmentResult.comparisonItems
                           .filter((item) => item.oldPercentage > 0 || item.newPercentage > 0)
-                          .map((item) => (
-                          <tr key={item.slotKey}>
-                            <td className="py-2 px-2 font-bold">{item.name}</td>
-                            <td className="py-2 px-2 text-center font-mono">{item.oldPercentage}%</td>
-                            <td className="py-2 px-2 text-center font-mono font-bold text-[#15803D]">
-                              {item.newPercentage}%
-                            </td>
-                            <td className="py-2 px-2">{item.reason}</td>
-                          </tr>
-                        ))}
+                          .map((item) => {
+                            const oldDrops =
+                              typeof item.oldDrops === 'number' && Number.isFinite(item.oldDrops)
+                                ? Math.round(item.oldDrops)
+                                : calculateDropsFromMl(item.oldVolumeMl, item.oldPercentage > 0);
+                            const newDrops =
+                              typeof item.newDrops === 'number' && Number.isFinite(item.newDrops)
+                                ? Math.round(item.newDrops)
+                                : calculateDropsFromMl(item.newVolumeMl, item.newPercentage > 0);
+                            return (
+                              <tr key={item.slotKey}>
+                                <td className="py-2 px-2 font-bold">{item.name}</td>
+                                <td className="py-2 px-2 text-center font-mono whitespace-nowrap">
+                                  {item.oldPercentage}% ({item.oldVolumeMl} mL)
+                                </td>
+                                <td className="py-2 px-2 text-center font-mono font-bold text-[#BE185D] whitespace-nowrap">
+                                  {item.newPercentage}% ({item.newVolumeMl} mL)
+                                </td>
+                                <td className="py-2 px-2 text-center font-mono font-bold text-[#15803D] bg-[#ECFDF3]/40 whitespace-nowrap">
+                                  {oldDrops} → {newDrops} giọt
+                                </td>
+                                <td className="py-2 px-2">{item.reason}</td>
+                              </tr>
+                            );
+                          })}
                       </tbody>
+                      <tfoot className="bg-[#FFFDF0] border-t border-[#FDE68A] font-mono font-bold">
+                        <tr>
+                          <td className="py-2 px-2 font-sans">Tổng</td>
+                          <td className="py-2 px-2 text-center">
+                            {adjustmentResult.comparisonItems.reduce((a, b) => a + b.oldPercentage, 0)}%
+                          </td>
+                          <td className="py-2 px-2 text-center text-[#BE185D]">
+                            {adjustmentResult.comparisonItems.reduce((a, b) => a + b.newPercentage, 0)}%
+                          </td>
+                          <td className="py-2 px-2 text-center text-[#15803D] bg-[#ECFDF3]/70 whitespace-nowrap">
+                            {adjustmentResult.comparisonItems.reduce((a, b) => {
+                              const d =
+                                typeof b.oldDrops === 'number' && Number.isFinite(b.oldDrops)
+                                  ? Math.round(b.oldDrops)
+                                  : calculateDropsFromMl(b.oldVolumeMl, b.oldPercentage > 0);
+                              return a + d;
+                            }, 0)}{' '}
+                            →{' '}
+                            {adjustmentResult.comparisonItems.reduce((a, b) => {
+                              const d =
+                                typeof b.newDrops === 'number' && Number.isFinite(b.newDrops)
+                                  ? Math.round(b.newDrops)
+                                  : calculateDropsFromMl(b.newVolumeMl, b.newPercentage > 0);
+                              return a + d;
+                            }, 0)}{' '}
+                            giọt
+                          </td>
+                          <td className="py-2 px-2 font-sans text-[#5C6B5F]">1 giọt = 0,05 mL</td>
+                        </tr>
+                      </tfoot>
                     </table>
                   </div>
                 </SpringAccordion>

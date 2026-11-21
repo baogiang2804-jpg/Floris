@@ -424,6 +424,16 @@ CÔNG THỨC CHUẨN (10,00 mL) (1 giọt = 0,05 mL):
                       </tr>
                     ))}
                   </tbody>
+                  <tfoot className="bg-[#ECFDF3]/50 border-t border-[#BBF7D0] font-mono font-bold">
+                    {GROUP_LAB_REPORT_DATA.summaryRows10ml.map((s) => (
+                      <tr key={s.label}>
+                        <td className="py-2 px-2.5 font-sans text-[#166534]">{s.label}</td>
+                        <td className="py-2 px-2 text-center">{s.blendPct}</td>
+                        <td className="py-2 px-2 text-right text-[#15803D]">{s.volume10ml}</td>
+                        <td className="py-2 px-2.5 text-right text-[#92400E]">{s.drops10ml}</td>
+                      </tr>
+                    ))}
+                  </tfoot>
                 </table>
               </div>
 
