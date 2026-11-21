@@ -171,18 +171,95 @@ export function generateLocalEvaluation(
 
 
 
-// Helper to determine the best API base URL (supporting subpaths like /Floris/)
-function getApiUrl(endpoint: string): string {
-  if (typeof window !== 'undefined') {
-    const pathname = window.location.pathname;
-    if (pathname.startsWith('/Floris')) {
-      return `/Floris${endpoint}`;
-    }
+let internalPostBlocked = false;
+
+export function getConfiguredApiBaseUrl(): string {
+  const envUrl =
+    typeof import.meta !== 'undefined' && (import.meta as any).env
+      ? (import.meta as any).env.VITE_API_BASE_URL
+      : '';
+  const globalUrl =
+    typeof globalThis !== 'undefined' ? (globalThis as any).__FLORIS_API_BASE_URL__ : '';
+  const raw = String(globalUrl || envUrl || '').trim().replace(/\/+$/, '');
+  if (!raw) return '';
+  if (raw.startsWith('https://') || raw.startsWith('http://') || raw.startsWith('/')) {
+    return raw;
   }
-  return endpoint;
+  return '';
 }
 
-// Robust Safe Perfume Evaluation (Never crashes on unexpected token '<')
+export function isStaticHostingEnvironment(hostname?: string, protocol?: string): boolean {
+  const host = (
+    hostname ??
+    (typeof window !== 'undefined' ? window.location.hostname : '')
+  )
+    .trim()
+    .toLowerCase();
+  const proto = (
+    protocol ??
+    (typeof window !== 'undefined' ? window.location.protocol : '')
+  )
+    .trim()
+    .toLowerCase();
+
+  if (proto === 'file:') return true;
+  if (!host) return false;
+
+  return (
+    host === 'github.io' ||
+    host.endsWith('.github.io') ||
+    host.endsWith('.pages.dev') ||
+    host.endsWith('.netlify.app') ||
+    host.endsWith('.surge.sh') ||
+    host.endsWith('.gitlab.io')
+  );
+}
+
+export function resolveApiEndpoints(
+  endpoint: string,
+  options?: {
+    hostname?: string;
+    protocol?: string;
+    pathname?: string;
+    apiBaseUrl?: string;
+    internalPostBlocked?: boolean;
+  }
+): string[] {
+  const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const configuredBase = (
+    options?.apiBaseUrl !== undefined ? options.apiBaseUrl : getConfiguredApiBaseUrl()
+  )
+    .trim()
+    .replace(/\/+$/, '');
+
+  // If a working external backend API URL is configured, always route directly to it
+  if (configuredBase) {
+    return [`${configuredBase}${normalizedEndpoint}`];
+  }
+
+  // On static hosts (like GitHub Pages) or after a 405 Method Not Allowed, never send internal POST requests
+  const blocked =
+    options?.internalPostBlocked !== undefined ? options.internalPostBlocked : internalPostBlocked;
+  if (blocked || isStaticHostingEnvironment(options?.hostname, options?.protocol)) {
+    return [];
+  }
+
+  const pathname =
+    options?.pathname ?? (typeof window !== 'undefined' ? window.location.pathname : '/');
+  if (pathname.startsWith('/Floris')) {
+    return [`/Floris${normalizedEndpoint}`, normalizedEndpoint];
+  }
+
+  return [normalizedEndpoint];
+}
+
+function noteHttpResponseStatus(status: number, url: string) {
+  if (status === 405 && url.startsWith('/')) {
+    internalPostBlocked = true;
+  }
+}
+
+// Robust Safe Perfume Evaluation (Never crashes on unexpected token '<' or static 405)
 export async function safeRequestPerfumeEvaluation(params: {
   seasonLabel: string;
   totalVolume: number;
@@ -198,8 +275,12 @@ export async function safeRequestPerfumeEvaluation(params: {
     params.tierTotals
   );
 
+  const urlsToTry = resolveApiEndpoints('/api/perfume/evaluate');
+  if (urlsToTry.length === 0) {
+    return fallback;
+  }
+
   try {
-    const urlsToTry = [getApiUrl('/api/perfume/evaluate'), '/api/perfume/evaluate'];
     let jsonText = '';
 
     for (const url of Array.from(new Set(urlsToTry))) {
@@ -215,6 +296,11 @@ export async function safeRequestPerfumeEvaluation(params: {
             tierTotals: params.tierTotals,
           }),
         });
+
+        noteHttpResponseStatus(response.status, url);
+        if (response.status === 405) {
+          break;
+        }
 
         const contentType = response.headers.get('content-type') || '';
         const rawText = await response.text();
@@ -254,7 +340,7 @@ export async function safeRequestPerfumeEvaluation(params: {
   }
 }
 
-// Robust Safe Perfume Adjustment (Never crashes on unexpected token '<')
+// Robust Safe Perfume Adjustment (Never crashes on unexpected token '<' or static 405)
 export async function safeRequestPerfumeAdjustment(params: {
   userRequest: string;
   seasonLabel: string;
@@ -273,8 +359,12 @@ export async function safeRequestPerfumeAdjustment(params: {
     params.tierTotals
   );
 
+  const urlsToTry = resolveApiEndpoints('/api/perfume/adjust');
+  if (urlsToTry.length === 0) {
+    return fallback;
+  }
+
   try {
-    const urlsToTry = [getApiUrl('/api/perfume/adjust'), '/api/perfume/adjust'];
     let jsonText = '';
 
     for (const url of Array.from(new Set(urlsToTry))) {
@@ -292,6 +382,11 @@ export async function safeRequestPerfumeAdjustment(params: {
             tierTotals: params.tierTotals,
           }),
         });
+
+        noteHttpResponseStatus(response.status, url);
+        if (response.status === 405) {
+          break;
+        }
 
         const contentType = response.headers.get('content-type') || '';
         const rawText = await response.text();
@@ -351,74 +446,16 @@ export async function safeRequestPerfumeAdjustment(params: {
   }
 }
 
-// Robust Safe Speech-to-Text / Transcribe (Multilingual AI Audio)
-export async function safeRequestTranscribeDetailed(
-  audioBlob: Blob,
-  languageHint = 'auto'
-): Promise<{ transcript: string; modelUsed?: string; error?: string }> {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      try {
-        const base64String = ((reader.result as string) || '').split(',')[1];
-        if (!base64String) {
-          resolve({ transcript: '' });
-          return;
-        }
-
-        const cleanMime = (audioBlob.type || 'audio/webm').split(';')[0].trim() || 'audio/webm';
-        const urlsToTry = [getApiUrl('/api/perfume/transcribe'), '/api/perfume/transcribe'];
-        for (const url of Array.from(new Set(urlsToTry))) {
-          try {
-            const res = await fetch(url, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                audioBase64: base64String,
-                mimeType: cleanMime,
-                languageHint,
-              }),
-            });
-            const text = await res.text();
-            if (!text.trim().startsWith('<')) {
-              const data = JSON.parse(text);
-              if (typeof data?.transcript === 'string' && data.transcript.trim()) {
-                resolve({
-                  transcript: data.transcript.trim(),
-                  modelUsed: data.modelUsed,
-                });
-                return;
-              }
-              if (data?.error) {
-                resolve({ transcript: '', error: data.error });
-                return;
-              }
-            }
-          } catch {
-            continue;
-          }
-        }
-        resolve({ transcript: '' });
-      } catch {
-        resolve({ transcript: '' });
-      }
-    };
-    reader.onerror = () => resolve({ transcript: '' });
-    reader.readAsDataURL(audioBlob);
-  });
-}
-
-export async function safeRequestTranscribe(audioBlob: Blob, languageHint = 'auto'): Promise<string> {
-  const res = await safeRequestTranscribeDetailed(audioBlob, languageHint);
-  return res.transcript;
-}
-
-// Robust Safe Text-to-Speech (Gemini Live TTS with Browser SpeechSynthesis fallback)
+// Robust Safe Text-to-Speech (Gemini Live TTS with Web Speech API SpeechSynthesis fallback)
 export async function safeRequestTTS(textToSpeak: string): Promise<{ audioBase64: string | null; mimeType?: string }> {
   if (!textToSpeak) return { audioBase64: null };
 
+  const urlsToTry = resolveApiEndpoints('/api/perfume/tts');
+  if (urlsToTry.length === 0) {
+    return { audioBase64: null };
+  }
+
   try {
-    const urlsToTry = [getApiUrl('/api/perfume/tts'), '/api/perfume/tts'];
     for (const url of Array.from(new Set(urlsToTry))) {
       try {
         const res = await fetch(url, {
@@ -426,6 +463,10 @@ export async function safeRequestTTS(textToSpeak: string): Promise<{ audioBase64
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text: textToSpeak, voiceName: 'Kore' }),
         });
+        noteHttpResponseStatus(res.status, url);
+        if (res.status === 405) {
+          break;
+        }
         const raw = await res.text();
         if (!raw.trim().startsWith('<')) {
           const data = JSON.parse(raw);
@@ -444,7 +485,7 @@ export async function safeRequestTTS(textToSpeak: string): Promise<{ audioBase64
   return { audioBase64: null };
 }
 
-// Browser Speech Synthesis in Vietnamese
+// Browser Web Speech API Speech Synthesis (used automatically on GitHub Pages or when server TTS is unavailable)
 export function speakWithBrowserSynthesis(text: string, onEnd?: () => void) {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
     if (onEnd) onEnd();

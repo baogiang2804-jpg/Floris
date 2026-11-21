@@ -35,7 +35,7 @@ jobs:
           touch dist/.nojekyll
           cp dist/index.html dist/404.html
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

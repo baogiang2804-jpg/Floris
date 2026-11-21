@@ -25,6 +25,16 @@ const port = parseInt(process.env.PORT || '3000', 10);
 
 app.use(express.json({ limit: '15mb' }));
 
+app.use(['/api', '/Floris/api'], (req: Request, res: Response, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
 // Track model quota cooldowns so a 429 on one model automatically routes to the next available model
 const TEXT_MODEL_CANDIDATES = [
   'gemini-3.8-flash',

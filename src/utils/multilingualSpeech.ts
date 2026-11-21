@@ -1,5 +1,3 @@
-import { safeRequestTranscribeDetailed } from './aiPerfumeEngine';
-
 export interface SpeechLanguageOption {
   code: string;
   label: string;
@@ -7,7 +5,7 @@ export interface SpeechLanguageOption {
 }
 
 export const SPEECH_LANGUAGE_OPTIONS: SpeechLanguageOption[] = [
-  { code: 'auto', label: '🌐 Tự động (Tất cả ngôn ngữ · AI)', shortLabel: '🌐 Mọi ngôn ngữ' },
+  { code: 'auto', label: '🌐 Tự động (Trình duyệt · Web Speech)', shortLabel: '🌐 Tự động' },
   { code: 'vi-VN', label: '🇻🇳 Tiếng Việt', shortLabel: '🇻🇳 VI' },
   { code: 'en-US', label: '🇺🇸 English', shortLabel: '🇺🇸 EN' },
   { code: 'fr-FR', label: '🇫🇷 Français', shortLabel: '🇫🇷 FR' },
@@ -18,35 +16,25 @@ export const SPEECH_LANGUAGE_OPTIONS: SpeechLanguageOption[] = [
   { code: 'de-DE', label: '🇩🇪 Deutsch', shortLabel: '🇩🇪 DE' },
 ];
 
+export function resolveSpeechRecognitionLang(
+  language: string,
+  navigatorLanguage?: string
+): string {
+  if (language && language !== 'auto') {
+    return language;
+  }
+  const browserLang =
+    navigatorLanguage ??
+    (typeof navigator !== 'undefined' ? navigator.language : '');
+  return (browserLang || '').trim() || 'vi-VN';
+}
+
 export function cleanAudioMimeType(mimeType?: string): string {
   const raw = (mimeType || '').split(';')[0].trim().toLowerCase();
   if (!raw || !raw.startsWith('audio/')) {
     return 'audio/webm';
   }
   return raw;
-}
-
-export function pickSupportedRecorderMimeType(): string {
-  if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') {
-    return 'audio/webm';
-  }
-  const candidates = [
-    'audio/webm;codecs=opus',
-    'audio/webm',
-    'audio/ogg;codecs=opus',
-    'audio/mp4',
-    'audio/wav',
-  ];
-  for (const type of candidates) {
-    try {
-      if (MediaRecorder.isTypeSupported(type)) {
-        return type;
-      }
-    } catch {
-      // continue
-    }
-  }
-  return 'audio/webm';
 }
 
 export interface MultilingualVoiceCallbacks {
@@ -64,216 +52,119 @@ export interface MultilingualVoiceController {
 }
 
 /**
- * Hybrid multilingual voice recognizer:
- * 1) Records microphone audio via MediaRecorder and transcribes via server Gemini AI (/api/perfume/transcribe),
- *    which natively detects and transcribes ALL languages (Vietnamese, English, French, Japanese, Korean, Chinese, etc.).
- * 2) Runs browser SpeechRecognition alongside (or as fallback when getUserMedia is unavailable) for live preview.
- * 3) Always delivers editable text via onTranscriptUpdate without auto-submitting formulas.
+ * Pure client-side Speech-to-Text recognizer using Web Speech API
+ * (window.SpeechRecognition || window.webkitSpeechRecognition).
+ * Runs 100% in the browser — sends ZERO POST requests to any server,
+ * preventing 405 errors on static hosting such as GitHub Pages.
  */
 export function createMultilingualVoiceSession(
   callbacks: MultilingualVoiceCallbacks
 ): MultilingualVoiceController {
-  let mediaRecorder: MediaRecorder | null = null;
-  let micStream: MediaStream | null = null;
-  let audioCtx: AudioContext | null = null;
-  let animFrame: number | null = null;
   let recognition: any = null;
-  let audioChunks: Blob[] = [];
-  let liveBrowserTranscript = '';
+  let liveTranscript = '';
   let stoppedManually = false;
   let finishedCalled = false;
 
   const finishOnce = () => {
     if (finishedCalled) return;
     finishedCalled = true;
-    callbacks.onFinish?.();
-  };
-
-  const cleanupAudioAnalyser = () => {
-    if (animFrame !== null) {
-      cancelAnimationFrame(animFrame);
-      animFrame = null;
-    }
-    if (micStream) {
-      micStream.getTracks().forEach((t) => t.stop());
-      micStream = null;
-    }
-    if (audioCtx && audioCtx.state !== 'closed') {
-      audioCtx.close().catch(() => {});
-      audioCtx = null;
-    }
     callbacks.onVolumeChange?.(0);
-  };
-
-  const startLiveSpeechPreview = () => {
-    const SpeechRecognitionAPI =
-      typeof window !== 'undefined'
-        ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-        : null;
-
-    if (!SpeechRecognitionAPI) return false;
-
-    try {
-      const rec = new SpeechRecognitionAPI();
-      // In 'auto' mode, if browser language is known use it only for live preview; AI server handles all languages on stop
-      if (callbacks.language && callbacks.language !== 'auto') {
-        rec.lang = callbacks.language;
-      } else if (typeof navigator !== 'undefined' && navigator.language) {
-        rec.lang = navigator.language;
-      }
-      rec.continuous = false;
-      rec.interimResults = true;
-      rec.maxAlternatives = 1;
-
-      rec.onresult = (event: any) => {
-        const text = Array.from(event.results || [])
-          .map((r: any) => r?.[0]?.transcript || '')
-          .join('')
-          .trim();
-        if (text) {
-          liveBrowserTranscript = text;
-          // Show live preview immediately when not relying solely on final AI transcription
-          callbacks.onTranscriptUpdate(text, false);
-        }
-      };
-
-      rec.onerror = () => {
-        // Ignore preview errors when MediaRecorder AI transcription is active
-        if (!mediaRecorder) {
-          callbacks.onError('Không nhận diện được giọng nói. Hãy thử nói lại hoặc nhập văn bản.');
-          finishOnce();
-        }
-      };
-
-      rec.onend = () => {
-        if (!mediaRecorder) {
-          if (liveBrowserTranscript) {
-            callbacks.onTranscriptUpdate(liveBrowserTranscript, true);
-          }
-          callbacks.onStatus('Đã ghi nhận — bạn có thể kiểm tra và chỉnh sửa trước khi gửi.');
-          finishOnce();
-        }
-      };
-
-      recognition = rec;
-      rec.start();
-      return true;
-    } catch {
-      return false;
-    }
+    callbacks.onFinish?.();
   };
 
   return {
     start: async () => {
       stoppedManually = false;
       finishedCalled = false;
-      liveBrowserTranscript = '';
-      audioChunks = [];
+      liveTranscript = '';
 
-      const hasMediaDevices =
-        typeof navigator !== 'undefined' &&
-        navigator.mediaDevices &&
-        typeof navigator.mediaDevices.getUserMedia === 'function' &&
-        typeof MediaRecorder !== 'undefined';
+      const SpeechRecognitionAPI =
+        typeof window !== 'undefined'
+          ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+          : null;
 
-      if (hasMediaDevices) {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          micStream = stream;
+      if (!SpeechRecognitionAPI) {
+        callbacks.onError(
+          'Trình duyệt không hỗ trợ nhận diện giọng nói (SpeechRecognition / webkitSpeechRecognition). Hãy dùng Chrome hoặc Edge, hoặc nhập trực tiếp.'
+        );
+        finishOnce();
+        return false;
+      }
 
-          // Optional live volume meter
-          if (callbacks.onVolumeChange) {
-            try {
-              const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-              audioCtx = new AudioCtx();
-              const analyser = audioCtx.createAnalyser();
-              analyser.fftSize = 256;
-              const src = audioCtx.createMediaStreamSource(stream);
-              src.connect(analyser);
-              const dataArray = new Uint8Array(analyser.frequencyBinCount);
-              const tick = () => {
-                if (!audioCtx || audioCtx.state === 'closed') return;
-                analyser.getByteFrequencyData(dataArray);
-                let sum = 0;
-                for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-                callbacks.onVolumeChange?.(Math.min(1, sum / dataArray.length / 80));
-                animFrame = requestAnimationFrame(tick);
-              };
-              tick();
-            } catch {
-              // ignore analyser failure
-            }
+      try {
+        const rec = new SpeechRecognitionAPI();
+        rec.lang = resolveSpeechRecognitionLang(callbacks.language);
+        rec.interimResults = true;
+        rec.continuous = false;
+        rec.maxAlternatives = 1;
+
+        rec.onstart = () => {
+          callbacks.onVolumeChange?.(0.45);
+          callbacks.onStatus('🎙️ Đang nghe trực tiếp trên trình duyệt...');
+        };
+
+        rec.onresult = (event: any) => {
+          const results = Array.from(event?.results || []);
+          const transcript = results
+            .map((r: any) => (r?.[0]?.transcript || '').trim())
+            .filter(Boolean)
+            .join(' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+          if (transcript) {
+            liveTranscript = transcript;
+            const lastResult = results[results.length - 1] as any;
+            const isFinal = Boolean(lastResult?.isFinal);
+            callbacks.onVolumeChange?.(isFinal ? 0.25 : 0.75);
+            callbacks.onTranscriptUpdate(transcript, isFinal);
           }
+        };
 
-          const mimeType = pickSupportedRecorderMimeType();
-          const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-          mediaRecorder = recorder;
-
-          recorder.ondataavailable = (e) => {
-            if (e.data && e.data.size > 0) {
-              audioChunks.push(e.data);
-            }
-          };
-
-          recorder.onstop = async () => {
-            if (recognition) {
-              try {
-                recognition.stop();
-              } catch {}
-            }
-            cleanupAudioAnalyser();
-
-            const cleanMime = cleanAudioMimeType(recorder.mimeType || mimeType);
-            const blob = new Blob(audioChunks, { type: cleanMime });
-
-            if (blob.size > 0) {
-              callbacks.onStatus('AI đang nhận diện giọng nói (đa ngôn ngữ)...');
-              const res = await safeRequestTranscribeDetailed(blob, callbacks.language);
-              if (res.transcript) {
-                callbacks.onTranscriptUpdate(res.transcript, true);
-                callbacks.onStatus(
-                  'Đã nhận diện xong — bạn có thể kiểm tra hoặc chỉnh sửa câu chữ trước khi gửi.'
-                );
-                finishOnce();
-                return;
-              }
-            }
-
-            if (liveBrowserTranscript) {
-              callbacks.onTranscriptUpdate(liveBrowserTranscript, true);
-              callbacks.onStatus(
-                'Đã ghi nhận từ trình duyệt — bạn có thể chỉnh sửa câu chữ trước khi gửi.'
-              );
-            } else {
-              callbacks.onStatus('Chưa nghe rõ âm thanh. Hãy thử nói lại hoặc nhập trực tiếp.');
-            }
+        rec.onerror = (event: any) => {
+          const errCode = event?.error;
+          if (errCode === 'aborted' && stoppedManually) {
+            return;
+          }
+          if (errCode === 'no-speech') {
+            callbacks.onStatus('Chưa nghe thấy giọng nói. Hãy thử bấm Nói lại hoặc nhập văn bản.');
             finishOnce();
-          };
+            return;
+          }
+          if (errCode === 'not-allowed' || errCode === 'service-not-allowed') {
+            callbacks.onError('Chưa được cấp quyền micro. Vui lòng cho phép micro trên trình duyệt.');
+            finishOnce();
+            return;
+          }
+          if (errCode === 'network') {
+            callbacks.onError('Lỗi mạng khi dùng dịch vụ nhận diện giọng nói của trình duyệt.');
+            finishOnce();
+            return;
+          }
+          callbacks.onError('Không nhận diện được giọng nói. Hãy thử nói lại hoặc nhập văn bản.');
+          finishOnce();
+        };
 
-          recorder.start();
-          startLiveSpeechPreview();
+        rec.onend = () => {
+          if (liveTranscript) {
+            callbacks.onTranscriptUpdate(liveTranscript, true);
+          }
           callbacks.onStatus(
-            callbacks.language === 'auto'
-              ? '🎙️ Đang nghe mọi ngôn ngữ (AI)... Bấm dừng khi nói xong.'
-              : '🎙️ Đang nghe... Bấm dừng khi nói xong.'
+            liveTranscript
+              ? 'Đã ghi nhận — bạn có thể kiểm tra và chỉnh sửa trước khi gửi.'
+              : 'Chưa nghe rõ giọng nói. Hãy thử nói lại hoặc nhập văn bản.'
           );
-          return true;
-        } catch {
-          cleanupAudioAnalyser();
-          mediaRecorder = null;
-        }
-      }
+          finishOnce();
+        };
 
-      // Fallback to browser SpeechRecognition if MediaRecorder/microphone stream is unavailable
-      const started = startLiveSpeechPreview();
-      if (started) {
-        callbacks.onStatus('🎙️ Đang nghe qua trình duyệt... Nói xong sẽ đưa vào ô chỉnh sửa.');
+        recognition = rec;
+        rec.start();
         return true;
+      } catch {
+        callbacks.onError('Không thể khởi tạo webkitSpeechRecognition trên trình duyệt này.');
+        finishOnce();
+        return false;
       }
-
-      callbacks.onError('Trình duyệt không hỗ trợ ghi âm hoặc micro chưa được cấp quyền.');
-      finishOnce();
-      return false;
     },
 
     stop: () => {
@@ -282,17 +173,10 @@ export function createMultilingualVoiceSession(
       if (recognition) {
         try {
           recognition.stop();
-        } catch {}
-      }
-      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        try {
-          mediaRecorder.stop();
         } catch {
-          cleanupAudioAnalyser();
           finishOnce();
         }
       } else {
-        cleanupAudioAnalyser();
         finishOnce();
       }
     },

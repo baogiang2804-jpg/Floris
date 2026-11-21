@@ -5,6 +5,8 @@ import {
   generateLocalEvaluation,
   normalizeAdjustmentOutput,
   generateLocalAdjustment,
+  isStaticHostingEnvironment,
+  resolveApiEndpoints,
 } from './aiPerfumeEngine.ts';
 import {
   adjustStandalonePrecisionFormula,
@@ -13,7 +15,12 @@ import {
   sanitizeStandalonePrecisionResponse,
   enforceClientFormulaIntegrity,
 } from './precisionFormulaAdjuster.ts';
-import { cleanAudioMimeType, SPEECH_LANGUAGE_OPTIONS } from './multilingualSpeech.ts';
+import {
+  cleanAudioMimeType,
+  SPEECH_LANGUAGE_OPTIONS,
+  resolveSpeechRecognitionLang,
+  createMultilingualVoiceSession,
+} from './multilingualSpeech.ts';
 
 const SAMPLE_SLOTS: FormulaSlot[] = [
   { key: 'top1', tier: 'top', tierLabel: 'Tầng Đầu', slotNumber: 1, ingredientId: 'top_jasmine', percentage: 40 },
@@ -340,6 +347,131 @@ describe('Floris Perfume Calculation & AI Normalization Logic', () => {
     );
     assert.equal(zhRes.isUnchanged, false);
     assert.ok(zhRes.comparisonItems.find((c) => c.slotKey === 'heart1')!.newPercentage > 30);
+  });
+
+  it('prevents 405 internal POSTs on GitHub Pages while supporting external API base URLs', () => {
+    assert.equal(isStaticHostingEnvironment('baogiang2804-jpg.github.io', 'https:'), true);
+    assert.equal(isStaticHostingEnvironment('floris.pages.dev', 'https:'), true);
+    assert.equal(isStaticHostingEnvironment('localhost', 'http:'), false);
+    assert.equal(
+      isStaticHostingEnvironment('ais-pre-n2dvxop477g75rkp3j6273-248853502236.asia-southeast1.run.app', 'https:'),
+      false
+    );
+
+    // GitHub Pages without external API -> returns [] (zero 405 POSTs, uses Web Speech API + local engine)
+    assert.deepEqual(
+      resolveApiEndpoints('/api/perfume/transcribe', {
+        hostname: 'baogiang2804-jpg.github.io',
+        protocol: 'https:',
+        pathname: '/Floris/',
+        apiBaseUrl: '',
+      }),
+      []
+    );
+
+    // GitHub Pages WITH external API URL -> points directly to working external API
+    assert.deepEqual(
+      resolveApiEndpoints('/api/perfume/transcribe', {
+        hostname: 'baogiang2804-jpg.github.io',
+        protocol: 'https:',
+        pathname: '/Floris/',
+        apiBaseUrl: 'https://floris-api.example.run.app/',
+      }),
+      ['https://floris-api.example.run.app/api/perfume/transcribe']
+    );
+
+    // Full-stack localhost / Cloud Run -> uses internal server routes
+    assert.deepEqual(
+      resolveApiEndpoints('/api/perfume/transcribe', {
+        hostname: 'localhost',
+        protocol: 'http:',
+        pathname: '/',
+        apiBaseUrl: '',
+      }),
+      ['/api/perfume/transcribe']
+    );
+
+    // Runtime 405 circuit breaker stops further internal POST attempts
+    assert.deepEqual(
+      resolveApiEndpoints('/api/perfume/adjust', {
+        hostname: 'custom-static.example.com',
+        protocol: 'https:',
+        pathname: '/',
+        apiBaseUrl: '',
+        internalPostBlocked: true,
+      }),
+      []
+    );
+  });
+
+  it('uses browser webkitSpeechRecognition directly with zero POST requests', async () => {
+    assert.equal(resolveSpeechRecognitionLang('auto', 'fr-FR'), 'fr-FR');
+    assert.equal(resolveSpeechRecognitionLang('auto', ''), 'vi-VN');
+    assert.equal(resolveSpeechRecognitionLang('ja-JP', 'en-US'), 'ja-JP');
+
+    const prevWindow = (globalThis as any).window;
+    const prevFetch = globalThis.fetch;
+    let fetchCount = 0;
+
+    (globalThis as any).fetch = async () => {
+      fetchCount++;
+      throw new Error('Must not send POST requests during browser speech recognition');
+    };
+
+    class FakeWebkitSpeechRecognition {
+      lang = '';
+      interimResults = false;
+      continuous = false;
+      maxAlternatives = 1;
+      onstart: (() => void) | null = null;
+      onresult: ((e: any) => void) | null = null;
+      onerror: ((e: any) => void) | null = null;
+      onend: (() => void) | null = null;
+      start() {
+        this.onstart?.();
+        this.onresult?.({
+          results: [{ 0: { transcript: 'Tăng hương đào' }, isFinal: true }],
+        });
+        this.onend?.();
+      }
+      stop() {
+        this.onend?.();
+      }
+    }
+
+    (globalThis as any).window = {
+      webkitSpeechRecognition: FakeWebkitSpeechRecognition,
+    };
+
+    try {
+      let capturedTranscript = '';
+      let finalFlag = false;
+      let finished = false;
+      const session = createMultilingualVoiceSession({
+        language: 'vi-VN',
+        onStatus: () => {},
+        onTranscriptUpdate: (text, isFinal) => {
+          capturedTranscript = text;
+          finalFlag = isFinal;
+        },
+        onError: (err) => {
+          assert.fail(`Unexpected error: ${err}`);
+        },
+        onFinish: () => {
+          finished = true;
+        },
+      });
+
+      const started = await session.start();
+      assert.equal(started, true);
+      assert.equal(capturedTranscript, 'Tăng hương đào');
+      assert.equal(finalFlag, true);
+      assert.equal(finished, true);
+      assert.equal(fetchCount, 0);
+    } finally {
+      (globalThis as any).window = prevWindow;
+      globalThis.fetch = prevFetch;
+    }
   });
 });
 

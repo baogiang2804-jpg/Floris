@@ -73,7 +73,6 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [isListening, setIsListening] = useState<boolean>(false);
-  const [isTranscribingServer, setIsTranscribingServer] = useState<boolean>(false);
   const [voiceStatusText, setVoiceStatusText] = useState<string>('');
   const [speechLanguage, setSpeechLanguage] = useState<string>('auto');
   const lastTranscriptRef = useRef<string>('');
@@ -157,7 +156,6 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
 
   const handleToggleVoiceInput = async () => {
     if (isListening) {
-      setIsTranscribingServer(true);
       voiceSessionRef.current?.stop();
       setIsListening(false);
       return;
@@ -178,12 +176,10 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
       },
       onError: (err) => {
         setIsListening(false);
-        setIsTranscribingServer(false);
         setErrorMsg(err);
       },
       onFinish: () => {
         setIsListening(false);
-        setIsTranscribingServer(false);
         setTimeout(() => promptInputRef.current?.focus(), 0);
       },
     });
@@ -424,7 +420,6 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
               <button
                 type="button"
                 onClick={handleToggleVoiceInput}
-                disabled={isTranscribingServer}
                 className={`absolute right-2.5 bottom-2.5 w-10 h-10 rounded-2xl flex items-center justify-center transition-all shadow-xs ${
                   isListening
                     ? 'bg-[#EC4899] text-white animate-pulse'
@@ -432,9 +427,7 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
                 }`}
                 title="Thu âm giọng nói"
               >
-                {isTranscribingServer ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : isListening ? (
+                {isListening ? (
                   <MicOff className="w-4 h-4" />
                 ) : (
                   <Mic className="w-4 h-4" />
