@@ -1246,7 +1246,11 @@ export default function App() {
                 tierTotals={formulaResults.tierTotals}
                 seasonName={SEASONAL_TEMPLATES[selectedSeason].title}
                 concentrationName={concentrationName}
+                concentrationPercent={concentrationPercent}
                 totalVolume={totalVolume}
+                perfumeName={perfumeName}
+                onApplyAdjustedFormula={handleApplyAIAdjustedFormula}
+                onSaveProposedToDrawer={handleSaveProposedFormulaToDrawer}
               />
 
               {/* Visual Workspace Cards */}

@@ -24,6 +24,11 @@ import {
   enforceClientFormulaIntegrity,
 } from './precisionFormulaAdjuster.ts';
 import {
+  computeScentDimensions,
+  buildSensoryAdjustmentPrompt,
+  parseSensoryAdjustmentDeltas,
+} from './scentProfile.ts';
+import {
   cleanAudioMimeType,
   SPEECH_LANGUAGE_OPTIONS,
   resolveSpeechRecognitionLang,
@@ -550,6 +555,61 @@ describe('Floris Perfume Calculation & AI Normalization Logic', () => {
     assert.match(reportCsv, /Số Giọt Mới \(1 giọt = 0,05 mL\)/);
     assert.match(reportCsv, /,\d+ giọt,/);
   });
+
+  it('adjusts original formula accurately from edited sensory chart levels without false missing-ingredient errors', () => {
+    const calc = calculateFormula(SAMPLE_SLOTS, 10, 10);
+    const dims = computeScentDimensions(calc.calculatedIngredients);
+    assert.equal(dims.length, 7);
+
+    const floralDim = dims.find((d) => d.facet === 'Hoa Cỏ')!;
+    const sweetDim = dims.find((d) => d.facet === 'Ngọt Ngào')!;
+    const citrusDim = dims.find((d) => d.facet === 'Cam Chanh')!;
+
+    assert.ok(floralDim.score >= 30);
+    assert.ok(sweetDim.score >= 50);
+
+    // Simulate user raising Hoa Cỏ (+40) & Cam Chanh (+45) while lowering Ngọt Ngào (-35)
+    const promptText = buildSensoryAdjustmentPrompt(
+      [
+        { facet: 'Hoa Cỏ', baseline: floralDim.score, target: Math.min(100, floralDim.score + 40), delta: 40 },
+        { facet: 'Cam Chanh', baseline: citrusDim.score, target: Math.min(100, citrusDim.score + 45), delta: 45 },
+        { facet: 'Ngọt Ngào', baseline: sweetDim.score, target: Math.max(0, sweetDim.score - 35), delta: -35 },
+      ],
+      'Floris Mẫu A'
+    );
+
+    const parsedDeltas = parseSensoryAdjustmentDeltas(promptText);
+    assert.equal(parsedDeltas.length, 3);
+
+    // Crucial: "Cam Chanh" in [Cảm giác: ...] must NOT falsely trigger missing Orange/Lemon under Rule 4
+    const missingCheck = checkMissingIngredients(promptText, calc.calculatedIngredients);
+    assert.equal(missingCheck.hasMissingIngredient, false);
+
+    const res = generateLocalAdjustment(
+      promptText,
+      'Mùa Xuân (Spring)',
+      10,
+      10,
+      calc.calculatedIngredients,
+      calc.tierTotals
+    );
+
+    assert.equal(res.isUnchanged, false);
+    assert.equal(res.validationReport?.validatedSum, 100);
+    // Exact original 4 active ingredients preserved (inactive 0% slots remain 0%)
+    const activeAfter = res.comparisonItems.filter((c) => c.newPercentage > 0);
+    assert.equal(activeAfter.length, 4);
+    assert.ok(res.comparisonItems.filter((c) => c.oldPercentage === 0).every((c) => c.newPercentage === 0));
+
+    // Top note (Hoa nhài / Floral + Fresh/Citrus tier lift) should increase relative to baseline
+    const jasmineItem = res.comparisonItems.find((c) => c.slotKey === 'top1')!;
+    const vanillaItem = res.comparisonItems.find((c) => c.slotKey === 'base2')!;
+    assert.ok(jasmineItem.newPercentage > jasmineItem.oldPercentage);
+    assert.ok(vanillaItem.newPercentage < vanillaItem.oldPercentage);
+    assert.ok(Number.isInteger(jasmineItem.newDrops));
+    assert.ok(Number.isInteger(vanillaItem.newDrops));
+  });
 });
+
 
 

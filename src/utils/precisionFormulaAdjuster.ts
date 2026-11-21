@@ -1,4 +1,11 @@
 import { FormulaSlot, calculateDropsFromMl } from './perfumeCalculations';
+import {
+  ScentFacetName,
+  ScentTargetDelta,
+  getIngredientMatchingFacets,
+  parseSensoryAdjustmentDeltas,
+  stripSensoryDirectiveTag,
+} from './scentProfile';
 
 export interface PrecisionFormulaEntry {
   name: string;
@@ -328,7 +335,7 @@ export function detectIngredientMentions(
   userRequest: string,
   customIngredients: Array<{ name: string; id?: string }> = []
 ): DetectedMention[] {
-  let working = (userRequest || '').toLowerCase();
+  let working = stripSensoryDirectiveTag(userRequest || '').toLowerCase();
   const found: DetectedMention[] = [];
   const seenKeys = new Set<string>();
 
@@ -749,6 +756,166 @@ export function normalizeAdjustmentOutput(
   };
 }
 
+function getTierFallbackSynergyForFacet(
+  ing: { tier?: 'top' | 'heart' | 'base'; name?: string; scentFamily?: string },
+  facet: ScentFacetName
+): number {
+  const tier = ing.tier || 'heart';
+  const fam = (ing.scentFamily || '').toLowerCase();
+  const name = (ing.name || '').toLowerCase();
+  const isSweetGourmand =
+    fam.includes('gourmand') || fam.includes('ngọt') || name.includes('vanilla') || name.includes('vani');
+
+  switch (facet) {
+    case 'Tươi Mát':
+    case 'Cam Chanh':
+      if (tier === 'top') return 0.85;
+      if (tier === 'heart') return 0.3;
+      return isSweetGourmand ? -0.65 : -0.45;
+    case 'Gỗ Trầm':
+    case 'Nồng Nàn':
+      if (tier === 'base') return 0.85;
+      if (tier === 'heart') return 0.15;
+      return -0.55;
+    case 'Hoa Cỏ':
+      if (tier === 'heart') return 0.7;
+      if (tier === 'top') return 0.5;
+      return -0.45;
+    case 'Ngọt Ngào':
+      if (tier === 'base') return 0.65;
+      if (tier === 'heart') return 0.45;
+      return -0.5;
+    case 'Quyến Rũ':
+      if (tier === 'base') return 0.85;
+      if (tier === 'heart') return 0.15;
+      return -0.5;
+  }
+}
+
+/**
+ * Adjusts ONLY existing active ingredients based on edited sensory profile deltas,
+ * strictly preserving the original ingredient list and keeping total = 100%.
+ */
+export function adjustFormulaBySensoryTargets(
+  sensoryDeltas: ScentTargetDelta[],
+  totalVolume: number,
+  concentrationPercent: number,
+  ingredients: any[] = []
+): AIAdjustmentResult {
+  const activeIngredients = (ingredients || []).filter((i) => (i.percentage || 0) > 0);
+  const changedDeltas = (sensoryDeltas || []).filter((d) => d.delta !== 0);
+
+  if (activeIngredients.length === 0 || changedDeltas.length === 0) {
+    const unchangedMsg = 'Giữ nguyên công thức gốc vì chưa có thay đổi về mức độ cảm giác.';
+    return normalizeAdjustmentOutput(
+      {
+        isUnchanged: true,
+        message: unchangedMsg,
+        spokenResponse: unchangedMsg,
+        analysisSummary: unchangedMsg,
+        proposedPerfumeName: 'Giữ Nguyên Công Thức Gốc',
+        adjustedIngredients: (ingredients || []).map((ing) => ({
+          slotKey: ing.slotKey,
+          newPercentage: ing.percentage,
+          reason: 'Giữ nguyên tỷ lệ gốc',
+        })),
+      },
+      ingredients,
+      totalVolume,
+      concentrationPercent
+    );
+  }
+
+  // Precompute whether at least one active ingredient directly maps to each edited facet
+  const facetHasDirectMatch = new Map<ScentFacetName, boolean>();
+  for (const d of changedDeltas) {
+    const hasMatch = activeIngredients.some((ing) =>
+      getIngredientMatchingFacets(ing).includes(d.facet)
+    );
+    facetHasDirectMatch.set(d.facet, hasMatch);
+  }
+
+  const rawWeights = activeIngredients.map((ing) => {
+    const directFacets = getIngredientMatchingFacets(ing);
+    let netImpulse = 0;
+
+    for (const d of changedDeltas) {
+      const hasDirect = facetHasDirectMatch.get(d.facet) ?? false;
+      const affinity = hasDirect
+        ? directFacets.includes(d.facet)
+          ? 1.0
+          : 0
+        : getTierFallbackSynergyForFacet(ing, d.facet);
+
+      netImpulse += (d.delta / 100) * affinity;
+    }
+
+    if (netImpulse >= 0) {
+      return ing.percentage + netImpulse * 55;
+    }
+    return Math.max(2, ing.percentage * Math.max(0.15, 1 + netImpulse * 0.85));
+  });
+
+  const balanced = rebalanceIntegersToSum(rawWeights, 100);
+  const newPctBySlot = new Map<string, number>();
+  activeIngredients.forEach((ing, idx) => newPctBySlot.set(ing.slotKey, balanced[idx]));
+
+  const topIncreased = [...changedDeltas].sort((a, b) => b.delta - a.delta)[0];
+  const shiftSummaryParts = changedDeltas.map((d) => {
+    const verb = d.delta > 0 ? 'Tăng' : 'Giảm';
+    return `${verb} ${d.facet} (${d.baseline}→${d.target})`;
+  });
+
+  const proposedName =
+    topIncreased && topIncreased.delta > 0
+      ? `Floris — Định hướng ${topIncreased.facet}`
+      : 'Floris — Tinh chỉnh Cảm giác';
+
+  const summary = `Đã điều chỉnh tỷ lệ các nguyên liệu gốc để đáp ứng mục tiêu cảm giác: ${shiftSummaryParts.join(', ')}, giữ nguyên danh sách nguyên liệu và tổng 100%.`;
+  const spoken = `Đã cân chỉnh công thức gốc theo hồ sơ cảm giác mới, nổi bật theo hướng ${
+    topIncreased && topIncreased.delta > 0 ? topIncreased.facet.toLowerCase() : 'cân bằng dịu nhẹ'
+  }.`;
+
+  return normalizeAdjustmentOutput(
+    {
+      message: summary,
+      spokenResponse: spoken,
+      analysisSummary: summary,
+      proposedPerfumeName: proposedName,
+      highlightChanges: activeIngredients.map((i) => {
+        const next = newPctBySlot.get(i.slotKey) ?? i.percentage;
+        const delta = next - i.percentage;
+        return `${cleanIngredientDisplayName(i.name)}: ${i.percentage}% → ${next}% (${delta >= 0 ? '+' : ''}${delta}%)`;
+      }),
+      olfactoryPredictionHypothesis: {
+        overallChange: `Công thức được tái phân bổ từ tỷ lệ gốc theo hồ sơ cảm giác (${shiftSummaryParts.join('; ')}).`,
+        topStage: '0–20 phút đầu: Tầng đầu điều tiết độ mở sáng và cảm giác thoáng ngay khi xịt.',
+        heartStage: '20 phút – 3 giờ: Tầng giữa định hình sắc thái hoa cỏ/trái cây theo mức cảm giác mục tiêu.',
+        baseStage: 'Sau 3 giờ: Tầng cuối giữ cân bằng độ ngọt, độ ấm và khả năng bám tỏa trên da.',
+      },
+      adjustedIngredients: (ingredients || []).map((ing) => {
+        const next = newPctBySlot.get(ing.slotKey) ?? 0;
+        const delta = next - (ing.percentage || 0);
+        return {
+          slotKey: ing.slotKey,
+          newPercentage: next,
+          reason:
+            (ing.percentage || 0) === 0
+              ? 'Khe hương không sử dụng (0%)'
+              : delta > 0
+              ? `Tăng ${cleanIngredientDisplayName(ing.name)} (+${delta}%) để nâng nhóm cảm giác mục tiêu`
+              : delta < 0
+              ? `Giảm nhẹ ${cleanIngredientDisplayName(ing.name)} (${delta}%) để nhường sắc thái cảm giác và giữ tổng 100%`
+              : `Giữ ổn định ${cleanIngredientDisplayName(ing.name)}`,
+        };
+      }),
+    },
+    ingredients,
+    totalVolume,
+    concentrationPercent
+  );
+}
+
 /**
  * Local deterministic precision adjustment engine obeying STRICT RULES 1-4.
  * Works dynamically on ANY active ingredient set (not hardcoded to a fixed 4-note formula).
@@ -851,6 +1018,17 @@ export function generateLocalAdjustment(
       ingredients,
       totalVolume,
       concentrationPercent
+    );
+  }
+
+  // Case 0: Structured Sensory Radar Profile Targets from ScentProfileView
+  const sensoryDeltas = parseSensoryAdjustmentDeltas(userRequest);
+  if (sensoryDeltas.length > 0) {
+    return adjustFormulaBySensoryTargets(
+      sensoryDeltas,
+      totalVolume,
+      concentrationPercent,
+      ingredients
     );
   }
 
