@@ -22,6 +22,11 @@ import {
   speakWithBrowserSynthesis,
   AIAdjustmentResult,
 } from '../utils/aiPerfumeEngine';
+import {
+  SPEECH_LANGUAGE_OPTIONS,
+  createMultilingualVoiceSession,
+  MultilingualVoiceController,
+} from '../utils/multilingualSpeech';
 import { SpringAccordion } from './SpringAccordion';
 
 interface VoiceAssistantModalProps {
@@ -69,16 +74,12 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [appliedSuccess, setAppliedSuccess] = useState<boolean>(false);
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
+  const [speechLanguage, setSpeechLanguage] = useState<string>('auto');
 
-  const recognitionRef = useRef<any>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const micStreamRef = useRef<MediaStream | null>(null);
-  const animFrameRef = useRef<number | null>(null);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
-  const silenceTimerRef = useRef<any>(null);
   const lastTranscriptRef = useRef<string>('');
   const promptInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const voiceSessionRef = useRef<MultilingualVoiceController | null>(null);
 
   const stopSpeaking = useCallback(() => {
     if (audioPlayerRef.current) {
@@ -91,59 +92,6 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
     }
     setIsSpeaking(false);
   }, []);
-
-  const stopAudioAnalyser = () => {
-    if (animFrameRef.current) {
-      cancelAnimationFrame(animFrameRef.current);
-      animFrameRef.current = null;
-    }
-    if (micStreamRef.current) {
-      micStreamRef.current.getTracks().forEach((track) => track.stop());
-      micStreamRef.current = null;
-    }
-    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-      audioContextRef.current.close().catch(() => {});
-      audioContextRef.current = null;
-    }
-    setAudioVolume(0);
-  };
-
-  const startAudioAnalyser = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      micStreamRef.current = stream;
-
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      const audioCtx = new AudioCtx();
-      audioContextRef.current = audioCtx;
-
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 256;
-      analyserRef.current = analyser;
-
-      const source = audioCtx.createMediaStreamSource(stream);
-      source.connect(analyser);
-
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-
-      const checkVolume = () => {
-        if (!analyserRef.current) return;
-        analyserRef.current.getByteFrequencyData(dataArray);
-        let sum = 0;
-        for (let i = 0; i < bufferLength; i++) {
-          sum += dataArray[i];
-        }
-        const normalized = Math.min(1, sum / bufferLength / 80);
-        setAudioVolume(normalized);
-        animFrameRef.current = requestAnimationFrame(checkVolume);
-      };
-
-      checkVolume();
-    } catch {
-      // Non-critical fallback
-    }
-  };
 
   const speakResponseText = useCallback(
     async (textToSpeak: string) => {
@@ -188,16 +136,12 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
   useEffect(() => {
     if (!isOpen) {
       stopSpeaking();
-      stopAudioAnalyser();
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch {}
-      }
+      voiceSessionRef.current?.stop();
+      voiceSessionRef.current = null;
       setIsListening(false);
+      setAudioVolume(0);
       setInterimText('');
       lastTranscriptRef.current = '';
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
     }
   }, [isOpen, stopSpeaking]);
 
@@ -217,13 +161,9 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
       setUserRequest(promptToUse);
       lastTranscriptRef.current = promptToUse;
 
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch {}
-      }
+      voiceSessionRef.current?.stop();
       setIsListening(false);
-      stopAudioAnalyser();
+      setAudioVolume(0);
 
       setErrorMsg(null);
       setIsAnalyzing(true);
@@ -273,18 +213,9 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
 
   const handleToggleVoiceInput = async () => {
     if (isListening) {
+      voiceSessionRef.current?.stop();
       setIsListening(false);
-      stopAudioAnalyser();
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch {}
-      }
-
-      setVoiceStatusText('Đã dừng nghe — hãy kiểm tra hoặc sửa lỗi chính tả rồi bấm "Gửi".');
-      setTimeout(() => promptInputRef.current?.focus(), 0);
+      setAudioVolume(0);
       return;
     }
 
@@ -293,59 +224,32 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
     setInterimText('');
     lastTranscriptRef.current = '';
 
-    const SpeechRecognitionAPI =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const controller = createMultilingualVoiceSession({
+      language: speechLanguage,
+      onStatus: (msg) => setVoiceStatusText(msg),
+      onTranscriptUpdate: (text) => {
+        if (text) {
+          setUserRequest(text);
+          setInterimText('');
+          lastTranscriptRef.current = text;
+        }
+      },
+      onVolumeChange: (vol) => setAudioVolume(vol),
+      onError: (err) => {
+        setIsListening(false);
+        setAudioVolume(0);
+        setErrorMsg(err);
+      },
+      onFinish: () => {
+        setIsListening(false);
+        setAudioVolume(0);
+        setTimeout(() => promptInputRef.current?.focus(), 0);
+      },
+    });
 
-    if (SpeechRecognitionAPI) {
-      try {
-        const recognition = new SpeechRecognitionAPI();
-        recognition.lang = 'vi-VN';
-        recognition.continuous = false;
-        recognition.interimResults = true;
-        recognition.maxAlternatives = 1;
-
-        recognition.onstart = () => {
-          setIsListening(true);
-          setVoiceStatusText('Đang nghe... Nói xong hệ thống sẽ đưa chữ vào ô để bạn sửa trước khi gửi.');
-          startAudioAnalyser();
-        };
-
-        recognition.onresult = (event: any) => {
-          const transcript = Array.from(event.results || [])
-            .map((res: any) => res?.[0]?.transcript || '')
-            .join('')
-            .trim();
-          if (transcript) {
-            setUserRequest(transcript);
-            setInterimText('');
-            lastTranscriptRef.current = transcript;
-          }
-        };
-
-        recognition.onerror = (err: any) => {
-          if (err.error !== 'no-speech') {
-            setIsListening(false);
-            stopAudioAnalyser();
-            setVoiceStatusText('Chạm lại mic hoặc sửa trực tiếp trong ô văn bản.');
-          }
-        };
-
-        recognition.onend = () => {
-          setIsListening(false);
-          stopAudioAnalyser();
-          setVoiceStatusText('Đã ghi nhận — bạn có thể sửa lỗi chính tả rồi bấm "Gửi".');
-          setTimeout(() => promptInputRef.current?.focus(), 0);
-        };
-
-        recognitionRef.current = recognition;
-        recognition.start();
-        return;
-      } catch {
-        // Fallback
-      }
-    }
-
-    setErrorMsg('Trình duyệt chưa hỗ trợ Micro. Bạn hãy chọn câu gợi ý bên dưới.');
+    voiceSessionRef.current = controller;
+    const started = await controller.start();
+    setIsListening(started);
   };
 
   const voicePrompts = [
@@ -448,23 +352,38 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
 
             {/* Input Box */}
             <div className="w-full max-w-2xl text-left space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-[#2B342D]">Yêu cầu mùi hương</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (isSpeaking) stopSpeaking();
-                    setAutoSpeak(!autoSpeak);
-                  }}
-                  className={`text-[11px] px-3 py-1 rounded-full border font-bold flex items-center gap-1 ${
-                    autoSpeak
-                      ? 'bg-[#ECFDF3] text-[#15803D] border-[#86EFAC]'
-                      : 'bg-white text-[#5C6B5F] border-[#F3D5E0]'
-                  }`}
-                >
-                  {autoSpeak ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}
-                  <span>Đọc phản hồi: {autoSpeak ? 'BẬT' : 'TẮT'}</span>
-                </button>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-bold text-[#2B342D]">Yêu cầu mùi hương (mọi ngôn ngữ)</span>
+                <div className="flex items-center gap-2">
+                  <select
+                    aria-label="Chọn ngôn ngữ nhận diện giọng nói"
+                    value={speechLanguage}
+                    disabled={isListening || isAnalyzing}
+                    onChange={(e) => setSpeechLanguage(e.target.value)}
+                    className="text-[11px] px-2.5 py-1 rounded-full border border-[#FBCFE8] bg-white text-[#9D174D] font-bold focus:outline-none"
+                  >
+                    {SPEECH_LANGUAGE_OPTIONS.map((opt) => (
+                      <option key={opt.code} value={opt.code}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isSpeaking) stopSpeaking();
+                      setAutoSpeak(!autoSpeak);
+                    }}
+                    className={`text-[11px] px-3 py-1 rounded-full border font-bold flex items-center gap-1 ${
+                      autoSpeak
+                        ? 'bg-[#ECFDF3] text-[#15803D] border-[#86EFAC]'
+                        : 'bg-white text-[#5C6B5F] border-[#F3D5E0]'
+                    }`}
+                  >
+                    {autoSpeak ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}
+                    <span>Đọc phản hồi: {autoSpeak ? 'BẬT' : 'TẮT'}</span>
+                  </button>
+                </div>
               </div>
 
               <div className="relative">

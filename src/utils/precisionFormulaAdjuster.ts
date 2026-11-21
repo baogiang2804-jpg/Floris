@@ -77,97 +77,97 @@ const KNOWN_INGREDIENT_LEXICON: IngredientLexiconEntry[] = [
     canonicalKey: 'cherry_blossom',
     displayName: 'Hoa anh đào (Cherry Blossom)',
     tierHint: 'heart',
-    aliases: ['hoa anh đào', 'cherry blossom', 'sakura', 'anh đào'],
+    aliases: ['hoa anh đào', 'cherry blossom', 'fleur de cerisier', 'sakura', 'anh đào', '桜', 'さくら', '벚꽃', '樱花'],
   },
   {
     canonicalKey: 'jasmine',
     displayName: 'Hoa nhài (Jasmine)',
     tierHint: 'top',
-    aliases: ['hoa nhài trắng', 'fresh jasmine', 'jasmine sambac', 'hoa nhài', 'jasmine', 'hoa lài', 'nhài', 'lài'],
+    aliases: ['hoa nhài trắng', 'fresh jasmine', 'jasmine sambac', 'hoa nhài', 'jasmine', 'jasmin', 'jazmín', 'hoa lài', 'nhài', 'lài', 'ジャスミン', '자스민', '재스민', '茉莉花', '茉莉'],
   },
   {
     canonicalKey: 'peach',
     displayName: 'Đào (Peach)',
     tierHint: 'heart',
-    aliases: ['spring peach', 'peach blossom', 'đào mùa xuân', 'quả đào', 'trái đào', 'hương đào', 'peach', 'đào'],
+    aliases: ['spring peach', 'peach blossom', 'đào mùa xuân', 'quả đào', 'trái đào', 'hương đào', 'peach', 'pêche', 'durazno', 'melocotón', 'pfirsich', 'đào', 'ピーチ', '桃', '복숭아', '水蜜桃', '桃子'],
   },
   {
     canonicalKey: 'musk',
     displayName: 'Xạ hương trắng (White Musk)',
     tierHint: 'base',
-    aliases: ['xạ hương trắng', 'white musk', 'macrocyclic musk', 'xạ hương', 'musk'],
+    aliases: ['xạ hương trắng', 'white musk', 'musc blanc', 'macrocyclic musk', 'xạ hương', 'musk', 'musc', 'almizcle', 'moschus', 'ホワイトムスク', 'ムスク', '화이트 머스크', '머스크', '白麝香', '麝香'],
   },
   {
     canonicalKey: 'vanilla',
     displayName: 'Vanilla',
     tierHint: 'base',
-    aliases: ['vanilla planifolia', 'vani bourbon', 'vanilla', 'vani'],
+    aliases: ['vanilla planifolia', 'vani bourbon', 'vanilla', 'vanille', 'vainilla', 'vani', 'バニラ', '바닐라', '香草'],
   },
   {
     canonicalKey: 'rose',
     displayName: 'Hoa hồng (Rose)',
     tierHint: 'heart',
-    aliases: ['hoa hồng grasse', 'rose de mai', 'hoa hồng', 'rose'],
+    aliases: ['hoa hồng grasse', 'rose de mai', 'hoa hồng', 'rose', 'rosa', 'ローズ', 'バラ', '장미', '玫瑰'],
   },
   {
     canonicalKey: 'bergamot',
     displayName: 'Cam Bergamot',
     tierHint: 'top',
-    aliases: ['cam bergamot', 'citrus bergamia', 'bergamot'],
+    aliases: ['cam bergamot', 'citrus bergamia', 'bergamot', 'bergamote', 'bergamota', 'ベルガモット', '베르가못', '佛手柑'],
   },
   {
     canonicalKey: 'lemon',
     displayName: 'Chanh vàng (Lemon)',
     tierHint: 'top',
-    aliases: ['chanh vàng sicily', 'chanh vàng', 'lemon', 'chanh'],
+    aliases: ['chanh vàng sicily', 'chanh vàng', 'lemon', 'citron', 'limón', 'zitrone', 'chanh', 'レモン', '레몬', '柠檬'],
   },
   {
     canonicalKey: 'neroli',
     displayName: 'Hoa cam Neroli',
     tierHint: 'top',
-    aliases: ['hoa cam neroli', 'hoa cam', 'neroli'],
+    aliases: ['hoa cam neroli', 'fleur d’oranger', "fleur d'oranger", 'hoa cam', 'neroli', 'ネロリ', '네롤리', '橙花'],
   },
   {
     canonicalKey: 'mandarin',
     displayName: 'Quýt hồng Mandarin',
     tierHint: 'top',
-    aliases: ['quýt hồng mandarin', 'quýt hồng', 'mandarin', 'quýt'],
+    aliases: ['quýt hồng mandarin', 'quýt hồng', 'mandarin', 'mandarine', 'mandarina', 'quýt', 'マンダリン', '만다린', '橘子'],
   },
   {
     canonicalKey: 'orange',
     displayName: 'Cam ngọt (Orange)',
     tierHint: 'top',
-    aliases: ['cam ngọt valencia', 'cam ngọt', 'vỏ cam', 'hương cam', 'mùi cam', 'sweet orange', 'orange', 'cam'],
+    aliases: ['cam ngọt valencia', 'cam ngọt', 'vỏ cam', 'hương cam', 'mùi cam', 'sweet orange', 'orange', 'naranja', 'cam', 'オレンジ', '오렌지', '甜橙'],
   },
   {
     canonicalKey: 'pear',
     displayName: 'Lê (Pear)',
     tierHint: 'top',
-    aliases: ['quả lê', 'hương lê', 'pear accord', 'pear', 'lê'],
+    aliases: ['quả lê', 'hương lê', 'pear accord', 'pear', 'poire', 'pera', 'birne', 'lê', 'ペアー', '洋梨', '배', '梨'],
   },
   {
     canonicalKey: 'peppermint',
     displayName: 'Bạc hà (Peppermint)',
     tierHint: 'top',
-    aliases: ['bạc hà băng', 'peppermint', 'spearmint', 'bạc hà', 'mint'],
+    aliases: ['bạc hà băng', 'peppermint', 'spearmint', 'menthe', 'menta', 'minze', 'bạc hà', 'mint', 'ミント', '민트', '薄荷'],
   },
   {
     canonicalKey: 'pink_pepper',
     displayName: 'Tiêu hồng (Pink Pepper)',
     tierHint: 'top',
-    aliases: ['tiêu hồng bourbon', 'tiêu hồng', 'pink pepper'],
+    aliases: ['tiêu hồng bourbon', 'tiêu hồng', 'pink pepper', 'poivre rose', 'ピンクペッパー', '핑크 페퍼', '粉红胡椒'],
   },
   {
     canonicalKey: 'cardamom',
     displayName: 'Bạch đậu khấu (Cardamom)',
     tierHint: 'top',
-    aliases: ['bạch đậu khấu xanh', 'bạch đậu khấu', 'cardamom'],
+    aliases: ['bạch đậu khấu xanh', 'bạch đậu khấu', 'cardamom', 'cardamome', 'カルダモン', '카다멈', '豆蔻'],
   },
   {
     canonicalKey: 'lavender',
     displayName: 'Oải hương (Lavender)',
     tierHint: 'heart',
-    aliases: ['oải hương provence', 'hoa oải hương', 'oải hương', 'lavender'],
+    aliases: ['oải hương provence', 'hoa oải hương', 'oải hương', 'lavender', 'lavande', 'lavanda', 'lavendel', 'ラベンダー', '라벤더', '薰衣草'],
   },
   {
     canonicalKey: 'ylang',
@@ -301,8 +301,15 @@ function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function containsCjkOrHangul(phrase: string): boolean {
+  return /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(phrase);
+}
+
 function buildWordBoundaryRegex(phrase: string): RegExp {
   const escaped = escapeRegex(phrase.toLowerCase());
+  if (containsCjkOrHangul(phrase)) {
+    return new RegExp(`()(${escaped})`, 'giu');
+  }
   return new RegExp(`(^|[^\\p{L}\\p{N}])(${escaped})(?=$|[^\\p{L}\\p{N}])`, 'giu');
 }
 
@@ -848,13 +855,15 @@ export function generateLocalAdjustment(
   }
 
   const q = (userRequest || '').toLowerCase();
-  const explicitTargetPctMatch = q.match(/(?:lên|thành|tới|đến|to|at|=)\s*(\d{1,3})\s*%?/i);
+  const explicitTargetPctMatch = q.match(/(?:lên|thành|tới|đến|to|at|à|a|auf|に|로|到|=)\s*(\d{1,3})\s*%?/i);
   const explicitPct = explicitTargetPctMatch ? parseInt(explicitTargetPctMatch[1], 10) : null;
 
   const isDecreaseIntent =
-    /\b(giảm|bớt|ít|nhẹ|dịu hơn|ít ngọt|decrease|reduce|less|lower|softer)\b/i.test(q);
+    /\b(giảm|bớt|ít|nhẹ|dịu hơn|ít ngọt|decrease|reduce|less|lower|softer|moins|réduire|diminuer|menos|reducir|weniger|senken)\b/i.test(q) ||
+    /(弱く|少なく|減ら|抑え|줄|낮|약하|减少|少一点|降低)/.test(q);
   const isIncreaseIntent =
-    /\b(tăng|nhiều|rõ|đậm|nổi bật|mạnh|increase|boost|more|higher|stronger|prominent|clearer)\b/i.test(q);
+    /\b(tăng|nhiều|rõ|đậm|nổi bật|mạnh|increase|boost|more|higher|stronger|prominent|clearer|plus|augmenter|renforcer|más|aumentar|mehr|stärker)\b/i.test(q) ||
+    /(強く|多く|増や|濃く|더|강하|높|많|增加|加强|多一点)/.test(q);
 
   const targetActiveKeys = new Set(missingCheck.matchedActiveIngredients.map((m) => m.ingredientName));
 
@@ -970,7 +979,13 @@ export function generateLocalAdjustment(
     q.includes('thoáng') ||
     q.includes('fresher') ||
     q.includes('fresh') ||
-    q.includes('brighter');
+    q.includes('brighter') ||
+    q.includes('frais') ||
+    q.includes('fresco') ||
+    q.includes('frisch') ||
+    q.includes('爽やか') ||
+    q.includes('상쾌') ||
+    q.includes('清新');
   const wantLessStrong =
     q.includes('giảm cảm giác nồng') ||
     q.includes('giảm nồng') ||
@@ -980,7 +995,12 @@ export function generateLocalAdjustment(
     q.includes('nhẹ hơn') ||
     q.includes('thanh khiết') ||
     q.includes('softer') ||
-    q.includes('lighter');
+    q.includes('lighter') ||
+    q.includes('doux') ||
+    q.includes('suave') ||
+    q.includes('優しい') ||
+    q.includes('부드럽') ||
+    q.includes('清淡');
   const wantClearerFloral =
     q.includes('hương hoa') ||
     q.includes('hoa rõ') ||
@@ -988,7 +1008,11 @@ export function generateLocalAdjustment(
     q.includes('ngọt dịu') ||
     q.includes('trái cây') ||
     q.includes('floral') ||
-    q.includes('fruity');
+    q.includes('fruity') ||
+    q.includes('fleuri') ||
+    q.includes('フローラル') ||
+    q.includes('꽃향') ||
+    q.includes('花香');
   const wantLongerWarm =
     q.includes('lưu hương') ||
     q.includes('lưu lâu') ||
@@ -996,11 +1020,17 @@ export function generateLocalAdjustment(
     q.includes('ấm áp') ||
     q.includes('bền mùi') ||
     q.includes('longer') ||
-    q.includes('warm');
+    q.includes('warm') ||
+    q.includes('chaud') ||
+    q.includes('cálido') ||
+    q.includes('持続') ||
+    q.includes('오래') ||
+    q.includes('持久');
   const wantKeepSignature =
     q.includes('giữ đặc trưng') ||
     q.includes('cân bằng') ||
-    q.includes('biến tấu');
+    q.includes('biến tấu') ||
+    q.includes('balanced');
 
   // Compute relative shifts strictly within existing active ingredients
   const rawActiveWeights = activeIngredients.map((ing) => {

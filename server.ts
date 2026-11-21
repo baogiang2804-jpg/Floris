@@ -638,10 +638,10 @@ Return ONLY valid JSON matching:
   }
 }
 
-// 3. Audio Transcription Endpoint (Speech-to-Text via Gemini 3.5 Transcribe)
+// 3. Audio Transcription Endpoint (All-Languages Speech-to-Text via Gemini 3.5 Transcribe + Multimodal Fallback)
 app.post(['/api/perfume/transcribe', '/Floris/api/perfume/transcribe'], async (req: Request, res: Response) => {
   try {
-    const { audioBase64, mimeType = 'audio/webm' } = req.body;
+    const { audioBase64, mimeType = 'audio/webm', languageHint = 'auto' } = req.body;
     if (!audioBase64) {
       return res.status(400).json({ error: 'Không nhận được dữ liệu âm thanh.' });
     }
@@ -653,6 +653,8 @@ app.post(['/api/perfume/transcribe', '/Floris/api/perfume/transcribe'], async (r
       });
     }
 
+    const cleanMime = String(mimeType || 'audio/webm').split(';')[0].trim() || 'audio/webm';
+
     const ai = new GoogleGenAI({
       apiKey,
       httpOptions: {
@@ -662,27 +664,72 @@ app.post(['/api/perfume/transcribe', '/Floris/api/perfume/transcribe'], async (r
       },
     });
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.5-transcribe',
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              mimeType,
-              data: audioBase64,
-            },
+    const languageInstruction =
+      languageHint && languageHint !== 'auto'
+        ? `Listen carefully to this audio (expected language hint: ${languageHint}, though the speaker may also mix languages or switch languages). Automatically detect the actual language(s) spoken.`
+        : 'Listen carefully to this audio and automatically detect whatever language(s) the speaker uses (including Vietnamese, English, French, Japanese, Korean, Chinese, Spanish, German, or mixed-language speech).';
+
+    const transcribePrompt = `${languageInstruction}
+Transcribe the user's speech verbatim into plain text in the original spoken language(s) and script without translating, summarizing, or adding any explanation, labels, or markdown. If no intelligible speech is present, return an empty string.`;
+
+    const TRANSCRIBE_MODELS = [
+      'gemini-3.5-transcribe',
+      'gemini-4-hydrogen',
+      'gemini-3.1-flash-lite',
+      'gemini-2.5-flash',
+    ];
+
+    let transcript = '';
+    let modelUsed = '';
+    const now = Date.now();
+
+    for (const modelName of TRANSCRIBE_MODELS) {
+      if (modelCooldownUntil[modelName] && modelCooldownUntil[modelName] > now) {
+        continue;
+      }
+      try {
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: {
+            parts: [
+              {
+                inlineData: {
+                  mimeType: cleanMime,
+                  data: audioBase64,
+                },
+              },
+              {
+                text: transcribePrompt,
+              },
+            ],
           },
-          {
-            text: 'Chuyển đoạn ghi âm tiếng Việt này thành văn bản chính xác. Chỉ trả về câu nói của người dùng, không thêm giải thích.',
-          },
-        ],
-      },
-    });
+        });
+        const text = (response.text || '').trim();
+        transcript = text;
+        modelUsed = modelName;
+        break;
+      } catch (err: any) {
+        if (isQuotaOrRateLimitError(err)) {
+          modelCooldownUntil[modelName] = Date.now() + 15 * 60 * 1000;
+        }
+        continue;
+      }
+    }
+
+    if (modelUsed) {
+      return res.json({
+        transcript,
+        language: languageHint || 'auto',
+        modelUsed,
+      });
+    }
 
     return res.json({
-      transcript: (response.text || '').trim(),
+      transcript: '',
+      fallbackToBrowser: true,
+      error: 'Dịch vụ nhận diện âm thanh máy chủ tạm bận, hệ thống dùng nhận diện trình duyệt.',
     });
-  } catch (error: any) {
+  } catch (_error: any) {
     return res.json({
       transcript: '',
       fallbackToBrowser: true,

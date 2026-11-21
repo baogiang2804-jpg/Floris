@@ -13,6 +13,7 @@ import {
   sanitizeStandalonePrecisionResponse,
   enforceClientFormulaIntegrity,
 } from './precisionFormulaAdjuster.ts';
+import { cleanAudioMimeType, SPEECH_LANGUAGE_OPTIONS } from './multilingualSpeech.ts';
 
 const SAMPLE_SLOTS: FormulaSlot[] = [
   { key: 'top1', tier: 'top', tierLabel: 'Tầng Đầu', slotNumber: 1, ingredientId: 'top_jasmine', percentage: 40 },
@@ -257,6 +258,88 @@ describe('Floris Perfume Calculation & AI Normalization Logic', () => {
     const evalRes = generateLocalEvaluation('Mùa Xuân (Spring)', 10, '10%', calc.calculatedIngredients, calc.tierTotals);
     assert.ok(evalRes.seasonSuitabilityScore >= 70 && evalRes.seasonSuitabilityScore <= 100);
     assert.ok(evalRes.olfactoryRadar.floral >= 15 && evalRes.olfactoryRadar.floral <= 95);
+  });
+
+  it('multilingual speech helper normalizes MIME types and defaults to auto (all languages)', () => {
+    assert.equal(cleanAudioMimeType('audio/webm;codecs=opus'), 'audio/webm');
+    assert.equal(cleanAudioMimeType('AUDIO/MP4'), 'audio/mp4');
+    assert.equal(cleanAudioMimeType('invalid/type'), 'audio/webm');
+    assert.equal(cleanAudioMimeType(undefined), 'audio/webm');
+
+    assert.equal(SPEECH_LANGUAGE_OPTIONS[0].code, 'auto');
+    const codes = new Set(SPEECH_LANGUAGE_OPTIONS.map((o) => o.code));
+    for (const expected of ['auto', 'vi-VN', 'en-US', 'fr-FR', 'ja-JP', 'ko-KR', 'zh-CN', 'es-ES', 'de-DE']) {
+      assert.ok(codes.has(expected), `Missing speech language option: ${expected}`);
+    }
+  });
+
+  it('adjusts formulas and detects missing notes in French, Japanese, Korean, and Chinese', () => {
+    const calc = calculateFormula(SAMPLE_SLOTS, 10, 10);
+
+    // French: "Plus de pêche" -> Đào (heart1) increases > 30%
+    const frRes = generateLocalAdjustment(
+      'Plus de pêche',
+      'Mùa Xuân (Spring)',
+      10,
+      10,
+      calc.calculatedIngredients,
+      calc.tierTotals
+    );
+    assert.equal(frRes.isUnchanged, false);
+    assert.ok(frRes.comparisonItems.find((c) => c.slotKey === 'heart1')!.newPercentage > 30);
+    assert.equal(frRes.comparisonItems.find((c) => c.slotKey === 'top2')!.newPercentage, 0);
+    assert.equal(frRes.comparisonItems.reduce((a, b) => a + b.newPercentage, 0), 100);
+
+    // Japanese active: "桃を強く" -> Đào (heart1) increases > 30%
+    const jaRes = generateLocalAdjustment(
+      '桃を強く',
+      'Mùa Xuân (Spring)',
+      10,
+      10,
+      calc.calculatedIngredients,
+      calc.tierTotals
+    );
+    assert.equal(jaRes.isUnchanged, false);
+    assert.ok(jaRes.comparisonItems.find((c) => c.slotKey === 'heart1')!.newPercentage > 30);
+
+    // Japanese missing ingredient: "ラベンダーを増やす" -> unchanged (Lavender not in formula)
+    const jaMissing = generateLocalAdjustment(
+      'ラベンダーを増やす',
+      'Mùa Xuân (Spring)',
+      10,
+      10,
+      calc.calculatedIngredients,
+      calc.tierTotals
+    );
+    assert.equal(jaMissing.isUnchanged, true);
+    assert.deepEqual(
+      jaMissing.comparisonItems.map((c) => c.newPercentage),
+      [40, 0, 30, 0, 15, 15]
+    );
+
+    // Korean: "복숭아 더 강하게" -> Đào (heart1) increases > 30%
+    const koRes = generateLocalAdjustment(
+      '복숭아 더 강하게',
+      'Mùa Xuân (Spring)',
+      10,
+      10,
+      calc.calculatedIngredients,
+      calc.tierTotals
+    );
+    assert.equal(koRes.isUnchanged, false);
+    assert.ok(koRes.comparisonItems.find((c) => c.slotKey === 'heart1')!.newPercentage > 30);
+
+    // Chinese: "增加水蜜桃" -> Đào (heart1) increases > 30%
+    const zhRes = generateLocalAdjustment(
+      '增加水蜜桃',
+      'Mùa Xuân (Spring)',
+      10,
+      10,
+      calc.calculatedIngredients,
+      calc.tierTotals
+    );
+    assert.equal(zhRes.isUnchanged, false);
+    assert.ok(zhRes.comparisonItems.find((c) => c.slotKey === 'heart1')!.newPercentage > 30);
   });
 });
 

@@ -20,10 +20,14 @@ import { CalculatedIngredient, FormulaSlot } from '../utils/perfumeCalculations'
 import {
   safeRequestPerfumeAdjustment,
   safeRequestTTS,
-  safeRequestTranscribe,
   speakWithBrowserSynthesis,
   AIAdjustmentResult,
 } from '../utils/aiPerfumeEngine';
+import {
+  SPEECH_LANGUAGE_OPTIONS,
+  createMultilingualVoiceSession,
+  MultilingualVoiceController,
+} from '../utils/multilingualSpeech';
 import { ScentFamilyVisualBadge } from './SpringDecorations';
 
 interface QRAndVoiceAssistantSectionProps {
@@ -71,11 +75,10 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
   const [isListening, setIsListening] = useState<boolean>(false);
   const [isTranscribingServer, setIsTranscribingServer] = useState<boolean>(false);
   const [voiceStatusText, setVoiceStatusText] = useState<string>('');
-  const recognitionRef = useRef<any>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+  const [speechLanguage, setSpeechLanguage] = useState<string>('auto');
   const lastTranscriptRef = useRef<string>('');
   const promptInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const voiceSessionRef = useRef<MultilingualVoiceController | null>(null);
 
   const [autoSpeak, setAutoSpeak] = useState<boolean>(true);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
@@ -116,13 +119,7 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
   useEffect(() => {
     return () => {
       stopSpeaking();
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch {
-          // ignore
-        }
-      }
+      voiceSessionRef.current?.stop();
     };
   }, []);
 
@@ -160,20 +157,9 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
 
   const handleToggleVoiceInput = async () => {
     if (isListening) {
+      setIsTranscribingServer(true);
+      voiceSessionRef.current?.stop();
       setIsListening(false);
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch {
-          // ignore
-        }
-      }
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        mediaRecorderRef.current.stop();
-      }
-
-      setVoiceStatusText('Đã dừng nghe — bạn có thể sửa lỗi chính tả rồi bấm "Đề xuất tỷ lệ mới".');
-      setTimeout(() => promptInputRef.current?.focus(), 0);
       return;
     }
 
@@ -181,86 +167,30 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
     stopSpeaking();
     lastTranscriptRef.current = '';
 
-    const SpeechRecognitionAPI =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (SpeechRecognitionAPI) {
-      try {
-        const recognition = new SpeechRecognitionAPI();
-        recognition.lang = 'vi-VN';
-        recognition.continuous = false;
-        recognition.interimResults = true;
-
-        recognition.onstart = () => {
-          setIsListening(true);
-          setVoiceStatusText('🎙️ Đang nghe... Nói xong hệ thống sẽ đưa vào ô để bạn sửa trước khi gửi.');
-        };
-
-        recognition.onresult = (event: any) => {
-          let transcript = '';
-          for (let i = 0; i < event.results.length; i++) {
-            transcript += event.results[i][0].transcript;
-          }
-          if (transcript) {
-            setUserRequest(transcript);
-            lastTranscriptRef.current = transcript;
-            setVoiceStatusText(`Đã nghe: "${transcript}" — kiểm tra lại chữ trước khi gửi.`);
-          }
-        };
-
-        recognition.onerror = () => {
-          setIsListening(false);
-          setVoiceStatusText('');
-        };
-
-        recognition.onend = () => {
-          setIsListening(false);
-          setVoiceStatusText('Đã ghi nhận — bạn có thể sửa lỗi chính tả rồi bấm "Đề xuất tỷ lệ mới".');
-          setTimeout(() => promptInputRef.current?.focus(), 0);
-        };
-
-        recognitionRef.current = recognition;
-        recognition.start();
-        return;
-      } catch {
-        // Fallback
-      }
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
-      };
-
-      mediaRecorder.onstop = async () => {
-        stream.getTracks().forEach((track) => track.stop());
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        setIsTranscribingServer(true);
-        setVoiceStatusText('Đang chuyển giọng nói...');
-
-        const transcript = await safeRequestTranscribe(audioBlob);
-        setIsTranscribingServer(false);
-        if (transcript) {
-          setUserRequest(transcript);
-          lastTranscriptRef.current = transcript;
-          setVoiceStatusText(`Đã nghe: "${transcript}" — hãy sửa lại nếu cần rồi bấm gửi.`);
-          setTimeout(() => promptInputRef.current?.focus(), 0);
-        } else {
-          setVoiceStatusText('');
+    const controller = createMultilingualVoiceSession({
+      language: speechLanguage,
+      onStatus: (msg) => setVoiceStatusText(msg),
+      onTranscriptUpdate: (text) => {
+        if (text) {
+          setUserRequest(text);
+          lastTranscriptRef.current = text;
         }
-      };
+      },
+      onError: (err) => {
+        setIsListening(false);
+        setIsTranscribingServer(false);
+        setErrorMsg(err);
+      },
+      onFinish: () => {
+        setIsListening(false);
+        setIsTranscribingServer(false);
+        setTimeout(() => promptInputRef.current?.focus(), 0);
+      },
+    });
 
-      mediaRecorderRef.current = mediaRecorder;
-      mediaRecorder.start();
-      setIsListening(true);
-      setVoiceStatusText('🎙️ Đang thu âm... Chạm mic để dừng.');
-    } catch {
-      setErrorMsg('Không thể mở Micro. Hãy chọn nhanh gợi ý bên dưới.');
-    }
+    voiceSessionRef.current = controller;
+    const started = await controller.start();
+    setIsListening(started);
   };
 
   const handleSendRequestToAI = async (customPrompt?: string) => {
@@ -425,24 +355,39 @@ export const QRAndVoiceAssistantSection: React.FC<QRAndVoiceAssistantSectionProp
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs font-bold text-[#15803D] flex items-center gap-1.5">
                 <Mic className="w-4 h-4 text-[#EC4899]" />
-                Nói hoặc nhập mong muốn
+                Nói (mọi ngôn ngữ) hoặc nhập mong muốn
               </span>
 
-              <button
-                type="button"
-                onClick={() => {
-                  if (isSpeaking) stopSpeaking();
-                  setAutoSpeak(!autoSpeak);
-                }}
-                className={`px-3 py-1 rounded-full border text-xs font-bold flex items-center gap-1.5 ${
-                  autoSpeak
-                    ? 'bg-[#DCFCE7] text-[#15803D] border-[#86EFAC]'
-                    : 'bg-white text-[#5C6B5F] border-[#E5E7EB]'
-                }`}
-              >
-                {autoSpeak ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
-                <span>{autoSpeak ? 'Đọc giọng: BẬT' : 'Đọc giọng: TẮT'}</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  aria-label="Chọn ngôn ngữ giọng nói"
+                  value={speechLanguage}
+                  disabled={isListening || isAnalyzing}
+                  onChange={(e) => setSpeechLanguage(e.target.value)}
+                  className="px-2.5 py-1 rounded-full border border-[#FBCFE8] bg-white text-[11px] font-bold text-[#9D174D] focus:outline-none"
+                >
+                  {SPEECH_LANGUAGE_OPTIONS.map((opt) => (
+                    <option key={opt.code} value={opt.code}>
+                      {opt.shortLabel}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isSpeaking) stopSpeaking();
+                    setAutoSpeak(!autoSpeak);
+                  }}
+                  className={`px-3 py-1 rounded-full border text-xs font-bold flex items-center gap-1.5 ${
+                    autoSpeak
+                      ? 'bg-[#DCFCE7] text-[#15803D] border-[#86EFAC]'
+                      : 'bg-white text-[#5C6B5F] border-[#E5E7EB]'
+                  }`}
+                >
+                  {autoSpeak ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+                  <span>{autoSpeak ? 'Đọc giọng: BẬT' : 'Đọc giọng: TẮT'}</span>
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

@@ -36,6 +36,11 @@ import {
   safeRequestTTS,
   speakWithBrowserSynthesis,
 } from '../utils/aiPerfumeEngine';
+import {
+  SPEECH_LANGUAGE_OPTIONS,
+  createMultilingualVoiceSession,
+  MultilingualVoiceController,
+} from '../utils/multilingualSpeech';
 import { SpringPerfumeBottleSVG } from './SpringPerfumeBottleSVG';
 import { ScentFamilyVisualBadge } from './SpringDecorations';
 import { SpringAccordion } from './SpringAccordion';
@@ -209,71 +214,43 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isListeningSpeech, setIsListeningSpeech] = useState(false);
   const [speechPreviewNote, setSpeechPreviewNote] = useState<string | null>(null);
+  const [speechLanguage, setSpeechLanguage] = useState<string>('auto');
   const promptInputRef = useRef<HTMLInputElement | null>(null);
-  const inlineRecognitionRef = useRef<any>(null);
+  const voiceSessionRef = useRef<MultilingualVoiceController | null>(null);
 
-  const handleToggleInlineSpeechInput = () => {
+  useEffect(() => {
+    return () => {
+      voiceSessionRef.current?.stop();
+    };
+  }, []);
+
+  const handleToggleInlineSpeechInput = async () => {
     if (isListeningSpeech) {
-      if (inlineRecognitionRef.current) {
-        try {
-          inlineRecognitionRef.current.stop();
-        } catch {}
-      }
+      voiceSessionRef.current?.stop();
       setIsListeningSpeech(false);
-      setSpeechPreviewNote('Đã dừng nghe — bạn có thể kiểm tra và sửa lại câu chữ trước khi gửi.');
-      setTimeout(() => promptInputRef.current?.focus(), 0);
       return;
     }
 
-    const SpeechRecognitionAPI =
-      typeof window !== 'undefined'
-        ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-        : null;
-
-    if (!SpeechRecognitionAPI) {
-      onOpenVoiceWidget();
-      return;
-    }
-
-    try {
-      const recognition = new SpeechRecognitionAPI();
-      recognition.lang = 'vi-VN';
-      recognition.interimResults = true;
-      recognition.continuous = false;
-
-      recognition.onstart = () => {
-        setIsListeningSpeech(true);
-        setAiError(null);
-        setSpeechPreviewNote('Đang nghe... Hãy nói yêu cầu chỉnh hương của bạn.');
-      };
-
-      recognition.onresult = (event: any) => {
-        const transcript = Array.from(event.results || [])
-          .map((res: any) => res?.[0]?.transcript || '')
-          .join('')
-          .trim();
-        if (transcript) {
-          setUserRequest(transcript);
-        }
-      };
-
-      recognition.onend = () => {
+    setAiError(null);
+    const controller = createMultilingualVoiceSession({
+      language: speechLanguage,
+      onStatus: (msg) => setSpeechPreviewNote(msg),
+      onTranscriptUpdate: (text) => {
+        if (text) setUserRequest(text);
+      },
+      onError: (err) => {
         setIsListeningSpeech(false);
-        setSpeechPreviewNote('Đã chuyển thành văn bản — hãy kiểm tra hoặc sửa lỗi chính tả rồi bấm "Đề xuất tỷ lệ mới".');
+        setSpeechPreviewNote(err);
+      },
+      onFinish: () => {
+        setIsListeningSpeech(false);
         setTimeout(() => promptInputRef.current?.focus(), 0);
-      };
+      },
+    });
 
-      recognition.onerror = () => {
-        setIsListeningSpeech(false);
-        setSpeechPreviewNote('Không nhận diện được giọng nói. Bạn có thể nhập hoặc dùng Gemini Live.');
-      };
-
-      inlineRecognitionRef.current = recognition;
-      recognition.start();
-    } catch {
-      setIsListeningSpeech(false);
-      onOpenVoiceWidget();
-    }
+    voiceSessionRef.current = controller;
+    const started = await controller.start();
+    setIsListeningSpeech(started);
   };
 
   const [studentEval, setStudentEval] = useState<StudentScientificEvaluation>(() => {
@@ -783,9 +760,22 @@ export const PresentationShowcaseHub: React.FC<PresentationShowcaseHubProps> = (
                 handleRunAIConsultation();
               }
             }}
-            placeholder="Nhập hoặc bấm Nói (VD: Tăng hương đào rõ hơn)..."
+            placeholder="Nhập hoặc bấm Nói bằng bất kỳ ngôn ngữ nào..."
             className="flex-1 px-4 py-2.5 rounded-2xl bg-white border-2 border-[#FDE68A] text-sm text-[#2B342D] focus:outline-none focus:border-[#EC4899]"
           />
+          <select
+            aria-label="Chọn ngôn ngữ giọng nói"
+            value={speechLanguage}
+            disabled={isListeningSpeech || isAnalyzing}
+            onChange={(e) => setSpeechLanguage(e.target.value)}
+            className="px-3 py-2.5 rounded-2xl bg-white border-2 border-[#FBCFE8] text-xs font-bold text-[#9D174D] focus:outline-none focus:border-[#EC4899] shrink-0"
+          >
+            {SPEECH_LANGUAGE_OPTIONS.map((opt) => (
+              <option key={opt.code} value={opt.code}>
+                {opt.shortLabel}
+              </option>
+            ))}
+          </select>
           <button
             type="button"
             disabled={isAnalyzing}

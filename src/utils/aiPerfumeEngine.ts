@@ -351,31 +351,46 @@ export async function safeRequestPerfumeAdjustment(params: {
   }
 }
 
-// Robust Safe Speech-to-Text / Transcribe
-export async function safeRequestTranscribe(audioBlob: Blob): Promise<string> {
+// Robust Safe Speech-to-Text / Transcribe (Multilingual AI Audio)
+export async function safeRequestTranscribeDetailed(
+  audioBlob: Blob,
+  languageHint = 'auto'
+): Promise<{ transcript: string; modelUsed?: string; error?: string }> {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onloadend = async () => {
       try {
         const base64String = ((reader.result as string) || '').split(',')[1];
         if (!base64String) {
-          resolve('');
+          resolve({ transcript: '' });
           return;
         }
 
+        const cleanMime = (audioBlob.type || 'audio/webm').split(';')[0].trim() || 'audio/webm';
         const urlsToTry = [getApiUrl('/api/perfume/transcribe'), '/api/perfume/transcribe'];
         for (const url of Array.from(new Set(urlsToTry))) {
           try {
             const res = await fetch(url, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ audioBase64: base64String, mimeType: 'audio/webm' }),
+              body: JSON.stringify({
+                audioBase64: base64String,
+                mimeType: cleanMime,
+                languageHint,
+              }),
             });
             const text = await res.text();
             if (!text.trim().startsWith('<')) {
               const data = JSON.parse(text);
-              if (data?.transcript) {
-                resolve(data.transcript);
+              if (typeof data?.transcript === 'string' && data.transcript.trim()) {
+                resolve({
+                  transcript: data.transcript.trim(),
+                  modelUsed: data.modelUsed,
+                });
+                return;
+              }
+              if (data?.error) {
+                resolve({ transcript: '', error: data.error });
                 return;
               }
             }
@@ -383,14 +398,19 @@ export async function safeRequestTranscribe(audioBlob: Blob): Promise<string> {
             continue;
           }
         }
-        resolve('');
+        resolve({ transcript: '' });
       } catch {
-        resolve('');
+        resolve({ transcript: '' });
       }
     };
-    reader.onerror = () => resolve('');
+    reader.onerror = () => resolve({ transcript: '' });
     reader.readAsDataURL(audioBlob);
   });
+}
+
+export async function safeRequestTranscribe(audioBlob: Blob, languageHint = 'auto'): Promise<string> {
+  const res = await safeRequestTranscribeDetailed(audioBlob, languageHint);
+  return res.transcript;
 }
 
 // Robust Safe Text-to-Speech (Gemini Live TTS with Browser SpeechSynthesis fallback)
